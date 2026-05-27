@@ -10,6 +10,7 @@ import 'services/ad_service.dart';
 import 'widgets/loading_screen.dart';
 
 void main() async {
+  // Ensure the binding is initialized before anything else
   WidgetsFlutterBinding.ensureInitialized();
   
   runApp(
@@ -39,7 +40,21 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
   }
 
   Future<void> _initApp() async {
-    // 1. Initialize AdMob
+    // 1. Initialize AdMob in parallel
+    unawaited(_initAdMob());
+
+    // 2. Reduced delay to 1.5s for a faster, professional handoff 
+    // from the native launch icon to the app UI.
+    await Future.delayed(const Duration(milliseconds: 1500));
+    
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _initAdMob() async {
     try {
       final requestConfig = RequestConfiguration(
         testDeviceIds: ["9BF33D942FE0E9E6393482062A26F769"],
@@ -49,15 +64,6 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
       ref.read(adSdkInitializedProvider.notifier).state = true;
     } catch (e) {
       debugPrint("AdMob Init Failed: $e");
-    }
-
-    // 2. Short delay for loading screen
-    await Future.delayed(const Duration(seconds: 3));
-    
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -75,26 +81,30 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.wifi_off, color: AppColors.primary),
+            Icon(Icons.wifi_off_rounded, color: AppColors.primary),
             SizedBox(width: 12),
-            Text('No Internet', style: TextStyle(color: AppColors.textPrimary)),
+            Text('No Internet', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w900)),
           ],
         ),
         content: const Text(
-          'No internet access detected. Please check your connection and try again.',
-          style: TextStyle(color: AppColors.textSecondary),
+          'Please check your connection and try again to access live match data.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.5),
         ),
         actions: [
-          TextButton(
-            onPressed: () async {
-              final result = await Connectivity().checkConnectivity();
-              if (!result.contains(ConnectivityResult.none)) {
-                if (Navigator.canPop(context)) Navigator.pop(context);
-              }
-            },
-            child: const Text('RETRY', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.only(right: 8, bottom: 8),
+            child: TextButton(
+              onPressed: () async {
+                final result = await Connectivity().checkConnectivity();
+                if (!result.contains(ConnectivityResult.none)) {
+                  if (Navigator.canPop(context)) Navigator.pop(context);
+                }
+              },
+              child: const Text('RETRY', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w900, letterSpacing: 1)),
+            ),
           ),
         ],
       ),
@@ -157,7 +167,7 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
         cardTheme: CardThemeData(
           color: AppColors.surface,
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
       routerConfig: router,
