@@ -1,4 +1,4 @@
-# yosintv
+# YoSinTvMobApp
 
 A new Flutter project.
 
