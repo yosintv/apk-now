@@ -7,7 +7,6 @@ import '../providers/matches_provider.dart';
 import '../widgets/ad_banner_widget.dart';
 import '../models/match.dart';
 import '../services/ad_service.dart';
-import 'package:intl/intl.dart';
 
 class CricketScreen extends ConsumerStatefulWidget {
   const CricketScreen({super.key});
@@ -129,16 +128,20 @@ class _CricketScreenState extends ConsumerState<CricketScreen> {
                         return const Padding(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: AdBannerWidget());
                       }
                       final dataIndex = index - (index ~/ 4);
+                      if (dataIndex < 0 || dataIndex >= filteredMatches.length) return null;
                       final match = filteredMatches[dataIndex];
                       
+                      final matchStatus = match.status;
                       String statusText = 'Starting Soon';
-                      if (match.status == MatchStatus.live) statusText = 'LIVE';
-                      if (match.status == MatchStatus.fullTime) statusText = 'Match Finished';
+                      if (matchStatus == MatchStatus.live) statusText = 'LIVE';
+                      if (matchStatus == MatchStatus.fullTime) statusText = 'Match Finished';
                       
                       String timeText = match.time ?? '';
-                      if (match.status == MatchStatus.upcoming && match.countdown != null) {
-                        final cd = match.countdown!;
-                        timeText = 'Starts in ${cd.inHours}h ${cd.inMinutes % 60}m';
+                      if (matchStatus == MatchStatus.upcoming) {
+                        final cd = match.countdown;
+                        if (cd != null) {
+                          timeText = 'Starts in ${cd.inHours}h ${cd.inMinutes % 60}m';
+                        }
                       }
 
                       return GestureDetector(

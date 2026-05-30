@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'providers/config_provider.dart';
+import 'providers/analytics_provider.dart';
 import 'models/app_config.dart';
 import 'models/match.dart';
 import 'models/article.dart';
@@ -14,6 +15,9 @@ import 'screens/news_screen.dart';
 import 'screens/maintenance_screen.dart';
 import 'screens/match_detail/match_detail_screen.dart';
 import 'screens/news/article_detail_screen.dart';
+
+// Global key to allow showing dialogs from anywhere (like update checks)
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -36,11 +40,15 @@ final routerNotifierProvider = Provider<RouterNotifier>((ref) {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
+  final analyticsObserver = ref.watch(analyticsObserverProvider);
 
   return GoRouter(
-    navigatorKey: GlobalKey<NavigatorState>(debugLabel: 'root'),
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: notifier,
+    observers: [
+      if (analyticsObserver != null) analyticsObserver,
+    ],
     redirect: (context, state) {
       final inMaintenance = state.matchedLocation == '/maintenance';
       final maintenanceActive = notifier.config.maintenanceMode;

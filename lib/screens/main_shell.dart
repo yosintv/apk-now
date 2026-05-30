@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
+import '../widgets/banner_ad_widget.dart';
+import '../providers/config_provider.dart';
+import '../models/app_config.dart';
 
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainShell({
@@ -19,6 +23,7 @@ class MainShell extends StatelessWidget {
   }
 
   Future<void> _launchURL(String urlString) async {
+    if (urlString.isEmpty) return;
     final Uri url = Uri.parse(urlString);
     try {
       if (await canLaunchUrl(url)) {
@@ -32,85 +37,122 @@ class MainShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(configProvider);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      // Task 4: Fix Layout Overflow - prevent keyboard-related overflows
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         centerTitle: true,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppColors.primary),
+            icon: Icon(Icons.menu_rounded, color: Theme.of(context).colorScheme.primary),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        title: Image.asset(
-          'assets/logo.png',
-          height: 40,
-          errorBuilder: (context, error, stackTrace) => const Text(
-            'YoSinTV',
-            style: TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'YoSinTV',
+                style: TextStyle(
+                  color: Color(0xFF003E9B),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF003E9B),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: const Text(
+                  'Cricket | Football',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search_rounded, color: AppColors.primary),
-            onPressed: () {
-              // Action for search
-            },
+        shape: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withOpacity(0.1), 
+            width: 1
           ),
-        ],
-        shape: const Border(
-          bottom: BorderSide(color: Color(0xFFE9ECEF), width: 1),
         ),
       ),
-      drawer: _buildDrawer(context),
+      drawer: _buildDrawer(context, config),
       body: navigationShell,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: navigationShell.currentIndex,
-          onTap: _onTabSelected,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.bottomNavBackground,
-          selectedItemColor: AppColors.activeTab,
-          unselectedItemColor: AppColors.inactiveTab,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.sports_soccer_outlined),
-              activeIcon: Icon(Icons.sports_soccer_rounded),
-              label: 'Football',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.sports_cricket_outlined),
-              activeIcon: Icon(Icons.sports_cricket_rounded),
-              label: 'Cricket',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.newspaper_outlined),
-              activeIcon: Icon(Icons.newspaper_rounded),
-              label: 'News',
+      // Task 4: Finalize UI Layout - One Sticky Ad & Prevents Overflow
+      bottomNavigationBar: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Essential to prevent 6px overflow
+          children: [
+            // Exactly one BannerAdWidget here as requested
+            const BannerAdWidget(),
+            
+            Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: BottomNavigationBar(
+                currentIndex: navigationShell.currentIndex,
+                onTap: _onTabSelected,
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                selectedItemColor: Theme.of(context).colorScheme.primary,
+                unselectedItemColor: Theme.of(context).unselectedWidgetColor,
+                selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+                elevation: 0,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home_outlined),
+                    activeIcon: Icon(Icons.home_rounded),
+                    label: 'Home',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.sports_soccer_outlined),
+                    activeIcon: Icon(Icons.sports_soccer_rounded),
+                    label: 'Football',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.sports_cricket_outlined),
+                    activeIcon: Icon(Icons.sports_cricket_rounded),
+                    label: 'Cricket',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.newspaper_outlined),
+                    activeIcon: Icon(Icons.newspaper_rounded),
+                    label: 'News',
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -118,7 +160,7 @@ class MainShell extends StatelessWidget {
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
+  Widget _buildDrawer(BuildContext context, AppConfig config) {
     return Drawer(
       backgroundColor: AppColors.drawerBackground,
       child: Column(
@@ -224,14 +266,14 @@ class MainShell extends StatelessWidget {
                   text: 'Telegram Community',
                   color: AppColors.telegram,
                   icon: Icons.send_rounded,
-                  onTap: () => _launchURL('https://t.me/yosintv'),
+                  onTap: () => _launchURL(config.telegramLink),
                 ),
                 const SizedBox(height: 12),
                 _buildSocialButton(
                   text: 'WhatsApp Support',
                   color: AppColors.whatsapp,
                   icon: Icons.chat_rounded,
-                  onTap: () => _launchURL('https://wa.me/1234567890'),
+                  onTap: () => _launchURL(config.whatsappLink),
                 ),
                 const SizedBox(height: 30),
                 const Text(

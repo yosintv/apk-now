@@ -2,6 +2,8 @@
 // Robust Dio HTTP client with response normalization utilities.
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import '../models/stream_link.dart';
 
 class ApiService {
   late final Dio _dio;
@@ -20,31 +22,31 @@ class ApiService {
   }
 
   /// Fetches raw JSON from [url].
-  /// Returns the decoded body (could be Map or List depending on endpoint).
+  /// Returns null if a network error occurs instead of throwing.
   Future<dynamic> _get(String url) async {
-    final response = await _dio.get(url);
-    return response.data;
+    try {
+      final response = await _dio.get(url);
+      return response.data;
+    } catch (e) {
+      debugPrint("ApiService: GET Error at $url -> $e");
+      return null;
+    }
   }
 
   /// Normalizes a raw API response into a flat Dart [List].
-  ///
-  /// - Cricket API returns a bare `[]` → returned as-is.
-  /// - Football API returns `{"matches": [...]}` → extracts inner list.
-  /// - Any other Map with a single list value → extracts that list.
-  /// - Falls back to an empty list on unexpected shapes.
   List<dynamic> toArray(dynamic data) {
+    if (data == null) return [];
     if (data is List) {
       return data;
     }
-    if (data is Map<String, dynamic>) {
-      // Try well-known keys first.
+    if (data is Map) {
+      final map = Map<String, dynamic>.from(data);
       for (final key in ['matches', 'data', 'results', 'items']) {
-        if (data.containsKey(key) && data[key] is List) {
-          return data[key] as List<dynamic>;
+        if (map.containsKey(key) && map[key] is List) {
+          return map[key] as List<dynamic>;
         }
       }
-      // Fallback: return first list value found.
-      for (final value in data.values) {
+      for (final value in map.values) {
         if (value is List) return value;
       }
     }
@@ -57,7 +59,7 @@ class ApiService {
     return toArray(raw).cast<Map<String, dynamic>>();
   }
 
-  /// Fetches and normalizes cricket matches (bare array response).
+  /// Fetches and normalizes cricket matches.
   Future<List<Map<String, dynamic>>> fetchCricketMatches(String url) async {
     final raw = await _get(url);
     return toArray(raw).cast<Map<String, dynamic>>();
@@ -72,7 +74,22 @@ class ApiService {
   /// Fetches a remote config JSON object.
   Future<Map<String, dynamic>> fetchConfig(String url) async {
     final raw = await _get(url);
-    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) {
+      return Map<String, dynamic>.from(raw);
+    }
     return {};
+  }
+
+  /// Fetches dynamic streaming links from a JSON endpoint.
+  Future<DynamicStreamConfig?> fetchStreamingLinks(String url) async {
+    try {
+      final raw = await _get(url);
+      if (raw is Map) {
+        return DynamicStreamConfig.fromJson(Map<String, dynamic>.from(raw));
+      }
+    } catch (e) {
+      debugPrint("Error fetching streaming links: $e");
+    }
+    return null;
   }
 }

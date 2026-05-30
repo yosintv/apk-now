@@ -5,19 +5,17 @@
 A complete, production-ready Flutter app scaffolding for YoSinTV based on the v1.1.0 specification. All 40+ Dart files have been generated with full functionality implementation.
 
 ### Project Location
-`/Users/apple/Documents/Codex/yosintv_flutter`
+`D:/learning/YosinTv`
 
 ## Files Created
 
 ### Core App Files
 - `lib/main.dart` - Entry point with AdMob initialization and splash screen
-- `lib/app.dart` - MaterialApp router configuration with maintenance mode support
 - `lib/router.dart` - Complete routing setup with 5 bottom tabs + 3 nested routes
 
-### Configuration (3 files)
-- `lib/config/defaults.dart` - Local fallback config values
-- `lib/config/remote_config.dart` - Remote config fetch logic with fallback
-- `lib/config/config_provider.dart` - Riverpod providers for config
+### Configuration
+- `assets/app_config.json` - Local base/fallback config values
+- `lib/providers/config_provider.dart` - Riverpod providers for config and remote fetching logic
 
 ### Models (3 files)
 - `lib/models/match.dart` - Match data model with JSON serialization
@@ -64,7 +62,6 @@ A complete, production-ready Flutter app scaffolding for YoSinTV based on the v1
 ### Configuration Files
 - `pubspec.yaml` - All 13 dependencies configured (riverpod, go_router, dio, google_mobile_ads, etc.)
 - `.gitignore` - Standard Flutter project ignore rules
-- `.env.example` - Template for environment variables
 - `README.md` - Comprehensive project documentation
 - `SETUP.md` - This file
 
@@ -80,7 +77,7 @@ flutter doctor
 
 ### 2. Get Dependencies
 ```bash
-cd /Users/apple/Documents/Codex/yosintv_flutter
+cd D:/learning/YosinTv
 flutter pub get
 ```
 
@@ -130,9 +127,9 @@ Computed at render time (no caching):
 - **Test Ad Unit IDs**: All set to Google test IDs (ca-app-pub-3940256099942544/*)
 
 ### Config Merge Strategy
-Remote config primary source, local defaults fill gaps only:
-```
-merged = defaultConfig.copy()
+Remote config primary source, local asset config (`assets/app_config.json`) fills gaps only:
+```dart
+merged = assetConfig.copy()
 remote.forEach((key, value) {
   if (value != null) merged[key] = value
 })
@@ -155,13 +152,13 @@ static const Color primary = Color(0xFFe63946); // Red
 ```
 
 ### Update API Endpoints
-Edit `lib/config/defaults.dart`:
-```dart
-'cricketApiUrl': 'https://your-api.com/cricket',
+Edit `assets/app_config.json`:
+```json
+"cricket_api_url": "https://your-api.com/cricket",
 ```
 
 ### Enable Production Ad IDs
-Replace test IDs in `lib/config/defaults.dart` with production IDs from your AdMob account.
+Replace test IDs in `assets/app_config.json` with production IDs from your AdMob account.
 
 ### Modify Splash Screen
 Edit `lib/widgets/animated_splash.dart` animation duration/sequence:
@@ -182,7 +179,7 @@ _controller = AnimationController(
 - [ ] App launches without crashes
 - [ ] Splash animation plays (~2.5s)
 - [ ] Bottom navigation tabs switch correctly
-- [ ] Config loads from defaults (API not available)
+- [ ] Config loads from assets (API not available)
 - [ ] Match status badges display correctly
 - [ ] Ad banners show every 3 items (or placeholder)
 - [ ] Search filters matches and articles

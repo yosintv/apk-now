@@ -1,47 +1,92 @@
 // lib/models/app_config.dart
-// Central remote configuration model for YoSinTV.
-// Deserializes remote/alt/local JSON into typed flags and URL fields.
+import 'package:flutter/foundation.dart';
+
+bool _toBool(dynamic value, bool defaultValue) {
+  if (value == null) return defaultValue;
+  if (value is bool) return value;
+  if (value is String) {
+    final lower = value.toLowerCase();
+    return lower == 'true' || lower == '1';
+  }
+  if (value is num) return value == 1;
+  return defaultValue;
+}
+
+class AppUpdateInfo {
+  final String latestVersion;
+  final bool forceUpdate;
+  final String updateUrl;
+  final String popupTitle;
+  final String popupMessage;
+
+  const AppUpdateInfo({
+    required this.latestVersion,
+    required this.forceUpdate,
+    required this.updateUrl,
+    required this.popupTitle,
+    required this.popupMessage,
+  });
+
+  factory AppUpdateInfo.fromJson(Map<dynamic, dynamic> json) {
+    return AppUpdateInfo(
+      latestVersion: (json['latest_version'] ?? json['latestVersion'] ?? '1.0.0').toString(),
+      forceUpdate: _toBool(json['force_update'] ?? json['forceUpdate'], false),
+      updateUrl: (json['update_url'] ?? json['updateUrl'] ?? '').toString(),
+      popupTitle: (json['popup_title'] ?? json['popupTitle'] ?? 'New Update Available!').toString(),
+      popupMessage: (json['popup_message'] ?? json['popupMessage'] ?? 'A new version is available.').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'latest_version': latestVersion,
+    'force_update': forceUpdate,
+    'update_url': updateUrl,
+    'popup_title': popupTitle,
+    'popup_message': popupMessage,
+  };
+}
 
 class AppConfig {
-  // --- Ad Control Flags ---
   final bool reviewMode;
   final bool streamingEnabled;
+  final String streamingUrl;
   final bool adsEnabled;
   final bool bannerEnabled;
   final bool rewardedEnabled;
   final bool appOpenEnabled;
   final bool interstitialEnabled;
 
-  // --- AdMob Ad Unit IDs ---
   final String bannerAdId;
   final String rewardedAdId;
   final String appOpenAdId;
   final String interstitialAdId;
 
-  // --- Maintenance & Messaging ---
+  final bool analyticsEnabled;
+  final String googleAnalyticsId;
+
   final bool maintenanceMode;
   final String maintenanceMessage;
   final String appMessage;
-  final String appMessageType; // "info" | "warning" | "error"
+  final String appMessageType;
 
-  // --- Social Links ---
   final String whatsappLink;
   final String telegramLink;
 
-  // --- Popup ---
   final bool popupEnabled;
   final String popupTitle;
   final String popupText;
 
-  // --- API Endpoints ---
   final String footballApiUrl;
   final String cricketApiUrl;
   final String articlesApiUrl;
   final String altConfigUrl;
 
+  final AppUpdateInfo? appUpdate;
+
   const AppConfig({
     required this.reviewMode,
     required this.streamingEnabled,
+    required this.streamingUrl,
     required this.adsEnabled,
     required this.bannerEnabled,
     required this.rewardedEnabled,
@@ -51,6 +96,8 @@ class AppConfig {
     required this.rewardedAdId,
     required this.appOpenAdId,
     required this.interstitialAdId,
+    required this.analyticsEnabled,
+    required this.googleAnalyticsId,
     required this.maintenanceMode,
     required this.maintenanceMessage,
     required this.appMessage,
@@ -64,86 +111,135 @@ class AppConfig {
     required this.cricketApiUrl,
     required this.articlesApiUrl,
     required this.altConfigUrl,
+    this.appUpdate,
   });
 
-  /// Convenience: whether any ads should actually be served.
-  /// reviewMode always overrides adsEnabled to false.
+  factory AppConfig.empty() => const AppConfig(
+    reviewMode: false,
+    streamingEnabled: true,
+    streamingUrl: '',
+    adsEnabled: true,
+    bannerEnabled: true,
+    rewardedEnabled: true,
+    appOpenEnabled: true,
+    interstitialEnabled: true,
+    bannerAdId: '',
+    rewardedAdId: '',
+    appOpenAdId: '',
+    interstitialAdId: '',
+    analyticsEnabled: false,
+    googleAnalyticsId: '',
+    maintenanceMode: false,
+    maintenanceMessage: '',
+    appMessage: '',
+    appMessageType: 'info',
+    whatsappLink: '',
+    telegramLink: '',
+    popupEnabled: false,
+    popupTitle: '',
+    popupText: '',
+    footballApiUrl: '',
+    cricketApiUrl: '',
+    articlesApiUrl: '',
+    altConfigUrl: '',
+  );
+
   bool get shouldShowAds => adsEnabled && !reviewMode;
 
-  /// Convenience: whether banner ads should be injected.
-  bool get shouldShowBanner => shouldShowAds && bannerEnabled;
-
   factory AppConfig.fromJson(Map<String, dynamic> json) {
+    AppUpdateInfo? update;
+    try {
+      final updateJson = json['app_update'] ?? json['appUpdate'];
+      if (updateJson != null && updateJson is Map) {
+        update = AppUpdateInfo.fromJson(updateJson);
+      }
+    } catch (e) {
+      debugPrint("Error parsing AppUpdateInfo: $e");
+    }
+
     return AppConfig(
-      reviewMode: json['reviewMode'] as bool? ?? false,
-      streamingEnabled: json['streamingEnabled'] as bool? ?? true,
-      adsEnabled: json['adsEnabled'] as bool? ?? true,
-      bannerEnabled: json['bannerEnabled'] as bool? ?? true,
-      rewardedEnabled: json['rewardedEnabled'] as bool? ?? true,
-      appOpenEnabled: json['appOpenEnabled'] as bool? ?? true,
-      interstitialEnabled: json['interstitialEnabled'] as bool? ?? true,
-      bannerAdId: json['bannerAdId'] as String? ??
-          'ca-app-pub-3940256099942544/6300978111',
-      rewardedAdId: json['rewardedAdId'] as String? ??
-          'ca-app-pub-3940256099942544/5224354917',
-      appOpenAdId: json['appOpenAdId'] as String? ??
-          'ca-app-pub-3940256099942544/9257395921',
-      interstitialAdId: json['interstitialAdId'] as String? ??
-          'ca-app-pub-3940256099942544/1033173712',
-      maintenanceMode: json['maintenanceMode'] as bool? ?? false,
-      maintenanceMessage: json['maintenanceMessage'] as String? ??
-          'App is under maintenance. Please try again later.',
-      appMessage: json['appMessage'] as String? ?? '',
-      appMessageType: json['appMessageType'] as String? ?? 'info',
-      whatsappLink:
-          json['whatsappLink'] as String? ?? 'https://wa.me/1234567890',
-      telegramLink:
-          json['telegramLink'] as String? ?? 'https://t.me/yosintv',
-      popupEnabled: json['popupEnabled'] as bool? ?? false,
-      popupTitle:
-          json['popupTitle'] as String? ?? 'Welcome to YoSinTV',
-      popupText: json['popupText'] as String? ??
-          'Your daily sports companion!',
-      footballApiUrl: json['footballApiUrl'] as String? ??
-          'https://api.singhs.com.np/api/football-matches.json',
-      cricketApiUrl: json['cricketApiUrl'] as String? ??
-          'https://api.singhs.com.np/api/cricket-matches.json',
-      articlesApiUrl: json['articlesApiUrl'] as String? ??
-          'https://api.singhs.com.np/api/articles.json',
-      altConfigUrl: json['altConfigUrl'] as String? ??
-          'https://api.singhs.com.np/api/alt-config.json',
+      reviewMode: _toBool(json['review_mode'] ?? json['reviewMode'], false),
+      streamingEnabled: _toBool(json['streaming_enabled'] ?? json['streamingEnabled'], true),
+      streamingUrl: (json['streaming_url'] ?? json['streamingUrl'] ?? '').toString(),
+      adsEnabled: _toBool(json['ads_enabled'] ?? json['adsEnabled'], true),
+      bannerEnabled: _toBool(json['banner_enabled'] ?? json['bannerEnabled'], true),
+      rewardedEnabled: _toBool(json['rewarded_enabled'] ?? json['rewardedEnabled'], true),
+      appOpenEnabled: _toBool(json['app_open_enabled'] ?? json['appOpenEnabled'], true),
+      interstitialEnabled: _toBool(json['interstitial_enabled'] ?? json['interstitialEnabled'], true),
+      
+      bannerAdId: (json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString(),
+      rewardedAdId: (json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString(),
+      appOpenAdId: (json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString(),
+      interstitialAdId: (json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString(),
+      
+      analyticsEnabled: _toBool(json['analytics_enabled'] ?? json['analyticsEnabled'], false),
+      googleAnalyticsId: (json['google_analytics_id'] ?? json['googleAnalyticsId'] ?? '').toString(),
+
+      maintenanceMode: _toBool(json['maintenance_mode'] ?? json['maintenanceMode'], false),
+      maintenanceMessage: (json['maintenance_message'] ?? json['maintenanceMessage'] ?? '').toString(),
+      appMessage: (json['app_message'] ?? json['appMessage'] ?? '').toString(),
+      appMessageType: (json['app_message_type'] ?? json['appMessageType'] ?? 'info').toString(),
+      
+      whatsappLink: (json['whatsapp_link'] ?? json['whatsappLink'] ?? '').toString(),
+      telegramLink: (json['telegram_link'] ?? json['telegramLink'] ?? '').toString(),
+      
+      popupEnabled: _toBool(json['popup_enabled'] ?? json['popupEnabled'], false),
+      popupTitle: (json['popup_title'] ?? json['popupTitle'] ?? '').toString(),
+      popupText: (json['popup_text'] ?? json['popupText'] ?? '').toString(),
+      
+      footballApiUrl: (json['football_api_url'] ?? json['footballApiUrl'] ?? '').toString(),
+      cricketApiUrl: (json['cricket_api_url'] ?? json['cricketApiUrl'] ?? '').toString(),
+      articlesApiUrl: (json['articles_api_url'] ?? json['articlesApiUrl'] ?? '').toString(),
+      altConfigUrl: (json['alt_config_url'] ?? json['altConfigUrl'] ?? '').toString(),
+      
+      appUpdate: update,
     );
   }
 
-  /// Merges a remote config map on top of this instance.
-  /// Remote values take precedence; null remote values fall back to this instance.
+  Map<String, dynamic> toJson() => {
+    'review_mode': reviewMode,
+    'streaming_enabled': streamingEnabled,
+    'streaming_url': streamingUrl,
+    'ads_enabled': adsEnabled,
+    'banner_enabled': bannerEnabled,
+    'rewarded_enabled': rewardedEnabled,
+    'app_open_enabled': appOpenEnabled,
+    'interstitial_enabled': interstitialEnabled,
+    'banner_ad_id': bannerAdId,
+    'rewarded_ad_id': rewardedAdId,
+    'app_open_ad_id': appOpenAdId,
+    'interstitial_ad_id': interstitialAdId,
+    'analytics_enabled': analyticsEnabled,
+    'google_analytics_id': googleAnalyticsId,
+    'maintenance_mode': maintenanceMode,
+    'maintenance_message': maintenanceMessage,
+    'app_message': appMessage,
+    'app_message_type': appMessageType,
+    'whatsapp_link': whatsappLink,
+    'telegram_link': telegramLink,
+    'popup_enabled': popupEnabled,
+    'popup_title': popupTitle,
+    'popup_text': popupText,
+    'football_api_url': footballApiUrl,
+    'cricket_api_url': cricketApiUrl,
+    'articles_api_url': articlesApiUrl,
+    'alt_config_url': altConfigUrl,
+    'app_update': appUpdate?.toJson(),
+  };
+
   AppConfig merge(Map<String, dynamic> remote) {
-    return AppConfig.fromJson({
-      'reviewMode': reviewMode,
-      'streamingEnabled': streamingEnabled,
-      'adsEnabled': adsEnabled,
-      'bannerEnabled': bannerEnabled,
-      'rewardedEnabled': rewardedEnabled,
-      'appOpenEnabled': appOpenEnabled,
-      'interstitialEnabled': interstitialEnabled,
-      'bannerAdId': bannerAdId,
-      'rewardedAdId': rewardedAdId,
-      'appOpenAdId': appOpenAdId,
-      'interstitialAdId': interstitialAdId,
-      'maintenanceMode': maintenanceMode,
-      'maintenanceMessage': maintenanceMessage,
-      'appMessage': appMessage,
-      'appMessageType': appMessageType,
-      'whatsappLink': whatsappLink,
-      'telegramLink': telegramLink,
-      'popupEnabled': popupEnabled,
-      'popupTitle': popupTitle,
-      'popupText': popupText,
-      'footballApiUrl': footballApiUrl,
-      'cricketApiUrl': cricketApiUrl,
-      'articlesApiUrl': articlesApiUrl,
-      'altConfigUrl': altConfigUrl,
-      ...remote, // remote keys override local defaults
+    final Map<String, dynamic> current = toJson();
+    remote.forEach((key, value) {
+      if (value != null) {
+        // Handle nested update info specifically
+        if ((key == 'app_update' || key == 'appUpdate') && value is Map) {
+          final existing = current['app_update'] ?? {};
+          current['app_update'] = {...(existing is Map ? existing : {}), ...value};
+        } else {
+          current[key] = value;
+        }
+      }
     });
+    return AppConfig.fromJson(current);
   }
 }

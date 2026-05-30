@@ -1,4 +1,4 @@
-name: yosintv
+name: YoSinTV
 description: YoSinTV - Live Sports Streaming Application.
 version: 1.1.0+1
 
@@ -20,6 +20,8 @@ dependencies:
   wakelock_plus: ^1.6.1
   package_info_plus: ^10.1.0
   connectivity_plus: ^6.1.0
+  firebase_core: ^3.10.1
+  firebase_analytics: ^11.4.1
 
 dev_dependencies:
   flutter_test:

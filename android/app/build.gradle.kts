@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+     id("com.google.gms.google-services") // Commented out until google-services.json is added
 }
 
 android {
@@ -18,8 +19,8 @@ android {
         applicationId = "net.yosintv.tv"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.2.2"
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
         multiDexEnabled = true
     }
 

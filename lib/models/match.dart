@@ -20,6 +20,7 @@ class Match {
   final String sport;       // "football" | "cricket"
   final String leagueLogo;
   final String detailsUrl;
+  final String? streamingUrl; // URL to fetch dynamic stream links
   final int? eventId;
   final double? duration;   // Live duration in hours (e.g., 2.2, 5.0)
   final Map<String, dynamic>? cricketData;
@@ -46,6 +47,7 @@ class Match {
     required this.sport,
     this.leagueLogo = '',
     this.detailsUrl = '',
+    this.streamingUrl,
     this.eventId,
     this.duration,
     this.cricketData,
@@ -78,6 +80,7 @@ class Match {
       sport: (json['sport'] ?? 'football').toString(),
       leagueLogo: (json['leagueLogo'] ?? json['league_logo'] ?? '').toString(),
       detailsUrl: (json['detailsUrl'] ?? json['details_url'] ?? '').toString(),
+      streamingUrl: (json['streamingUrl'] ?? json['streaming_url'])?.toString(),
       eventId: _parseInt(json['event_id'] ?? json['eventId']),
       duration: _parseDouble(json['duration']),
       cricketData: json['cricket_data'] is Map<String, dynamic> ? Map<String, dynamic>.from(json['cricket_data'] as Map) : null,
@@ -144,6 +147,7 @@ class Match {
         'channel': channel, 'quality': quality, 'viewers': viewers,
         'time': time, 'endTime': endTime, 'stadium': stadium,
         'sport': sport, 'leagueLogo': leagueLogo, 'detailsUrl': detailsUrl,
+        'streamingUrl': streamingUrl,
         'eventId': eventId, 'duration': duration,
         'cricketData': cricketData, 'footballData': footballData, 'streamUrls': streamUrls,
       };

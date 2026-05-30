@@ -4,32 +4,36 @@ Complete guide to managing app features via remote JSON configuration files.
 
 ## 📍 Configuration Files
 
-Two JSON configuration files control the entire app:
+Three JSON configuration sources control the app:
 
-### **1. Main Config** (Primary)
-- **File**: `config/main-config.json`
+### **1. Asset Config** (Base/Fallback)
+- **File**: `assets/app_config.json`
+- **Purpose**: Initial configuration loaded at startup. Serves as the ultimate fallback if remote configs are unreachable.
+
+### **2. Main Config** (Primary Remote)
 - **URL**: `https://api.singhs.com.np/api/main-config.json`
-- **Purpose**: Primary app configuration source
+- **Purpose**: Primary app configuration source.
 
-### **2. Alt Config** (Fallback)
-- **File**: `config/alt-config.json`
+### **3. Alt Config** (Secondary Remote)
 - **URL**: `https://api.singhs.com.np/api/alt-config.json`
-- **Purpose**: Used if main config fails to load
+- **Purpose**: Used if main config fails to load.
 
 ## 🔄 Config Loading Strategy
 
 ```
 App Starts
     ↓
+Load: assets/app_config.json (Initial State)
+    ↓
 Try: GET main-config.json
     ↓
-Success? → Use main config → Done ✅
+Success? → Merge into state → Done ✅
     ↓
 Fail? → Try: GET alt-config.json
     ↓
-Success? → Use alt config → Done ✅
+Success? → Merge into state → Done ✅
     ↓
-Fail? → Use local defaults (lib/config/defaults.dart)
+Fail? → Stay with Asset Config values
 ```
 
 ## 📋 Configuration Parameters
@@ -38,34 +42,34 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 
 ```json
 {
-  "reviewMode": false,
-  "streamingEnabled": true,
-  "adsEnabled": true,
-  "bannerEnabled": true,
-  "rewardedEnabled": true,
-  "appOpenEnabled": true,
-  "interstitialEnabled": true
+  "review_mode": false,
+  "streaming_enabled": true,
+  "ads_enabled": true,
+  "banner_enabled": true,
+  "rewarded_enabled": true,
+  "app_open_enabled": true,
+  "interstitial_enabled": true
 }
 ```
 
 | Parameter | Type | Purpose | Values |
 |-----------|------|---------|--------|
-| `reviewMode` | boolean | Disable ads for store review | true/false |
-| `streamingEnabled` | boolean | Show streaming links | true/false |
-| `adsEnabled` | boolean | Master ad switch | true/false |
-| `bannerEnabled` | boolean | Banner ads in lists | true/false |
-| `rewardedEnabled` | boolean | Rewarded ads | true/false |
-| `appOpenEnabled` | boolean | Ad on app resume | true/false |
-| `interstitialEnabled` | boolean | Full-screen ad on match detail | true/false |
+| `review_mode` | boolean | Disable ads for store review | true/false |
+| `streaming_enabled` | boolean | Show streaming links | true/false |
+| `ads_enabled` | boolean | Master ad switch | true/false |
+| `banner_enabled` | boolean | Banner ads in lists | true/false |
+| `rewarded_enabled` | boolean | Rewarded ads | true/false |
+| `app_open_enabled` | boolean | Ad on app resume | true/false |
+| `interstitial_enabled` | boolean | Full-screen ad on match detail | true/false |
 
 ### **AdMob Ad Unit IDs**
 
 ```json
 {
-  "bannerAdId": "ca-app-pub-5525538810839147/3825132304",
-  "rewardedAdId": "ca-app-pub-5525538810839147/6942250234",
-  "appOpenAdId": "ca-app-pub-5525538810839147/1223019695",
-  "interstitialAdId": "ca-app-pub-5525538810839147/4446428920"
+  "banner_ad_id": "ca-app-pub-5525538810839147/3825132304",
+  "rewarded_ad_id": "ca-app-pub-5525538810839147/6942250234",
+  "app_open_ad_id": "ca-app-pub-5525538810839147/1223019695",
+  "interstitial_ad_id": "ca-app-pub-5525538810839147/4446428920"
 }
 ```
 
@@ -73,26 +77,26 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 
 ```json
 {
-  "maintenanceMode": false,
-  "maintenanceMessage": "App is under maintenance. Please try again later.",
-  "appMessage": "Welcome to YoSinTV!",
-  "appMessageType": "info"
+  "maintenance_mode": false,
+  "maintenance_message": "App is under maintenance. Please try again later.",
+  "app_message": "Welcome to YoSinTV!",
+  "app_message_type": "info"
 }
 ```
 
 | Parameter | Type | Purpose | Notes |
 |-----------|------|---------|-------|
-| `maintenanceMode` | boolean | Block all navigation | true → Show maintenance screen |
-| `maintenanceMessage` | string | Message to display | Max 200 characters |
-| `appMessage` | string | Announcement banner | Empty string = no banner |
-| `appMessageType` | string | Banner color | "info" / "warning" / "error" |
+| `maintenance_mode` | boolean | Block all navigation | true → Show maintenance screen |
+| `maintenance_message` | string | Message to display | Max 200 characters |
+| `app_message` | string | Announcement banner | Empty string = no banner |
+| `app_message_type` | string | Banner color | "info" / "warning" / "error" |
 
 ### **Social Links**
 
 ```json
 {
-  "whatsappLink": "https://wa.me/1234567890",
-  "telegramLink": "https://t.me/yosintv"
+  "whatsapp_link": "https://wa.me/1234567890",
+  "telegram_link": "https://t.me/yosintv"
 }
 ```
 
@@ -100,10 +104,10 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 
 ```json
 {
-  "footballApiUrl": "https://api.singhs.com.np/api/football-matches.json",
-  "cricketApiUrl": "https://api.singhs.com.np/api/cricket-matches.json",
-  "articlesApiUrl": "https://api.singhs.com.np/api/articles.json",
-  "altConfigUrl": "https://api.singhs.com.np/api/alt-config.json"
+  "football_api_url": "https://api.singhs.com.np/api/football-matches.json",
+  "cricket_api_url": "https://api.singhs.com.np/api/cricket-matches.json",
+  "articles_api_url": "https://api.singhs.com.np/api/articles.json",
+  "alt_config_url": "https://api.singhs.com.np/api/alt-config.json"
 }
 ```
 
@@ -114,16 +118,16 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 **Current config:**
 ```json
 {
-  "adsEnabled": true,
-  "reviewMode": false
+  "ads_enabled": true,
+  "review_mode": false
 }
 ```
 
 **For App Store/Play Store Review:**
 ```json
 {
-  "reviewMode": true,
-  "adsEnabled": false
+  "review_mode": true,
+  "ads_enabled": false
 }
 ```
 
@@ -137,15 +141,15 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 **Normal state:**
 ```json
 {
-  "maintenanceMode": false
+  "maintenance_mode": false
 }
 ```
 
 **During server maintenance:**
 ```json
 {
-  "maintenanceMode": true,
-  "maintenanceMessage": "We're updating our servers. Back in 2 hours!"
+  "maintenance_mode": true,
+  "maintenance_message": "We're updating our servers. Back in 2 hours!"
 }
 ```
 
@@ -159,8 +163,8 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 **Add banner message:**
 ```json
 {
-  "appMessage": "🔴 Live: Cricket World Cup Final - India vs Australia!",
-  "appMessageType": "warning"
+  "app_message": "🔴 Live: Cricket World Cup Final - India vs Australia!",
+  "app_message_type": "warning"
 }
 ```
 
@@ -169,7 +173,7 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 **Remove after event:**
 ```json
 {
-  "appMessage": ""
+  "app_message": ""
 }
 ```
 
@@ -180,14 +184,14 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 **Current ads:**
 ```json
 {
-  "bannerAdId": "ca-app-pub-OLD_ID"
+  "banner_ad_id": "ca-app-pub-OLD_ID"
 }
 ```
 
 **New ad account:**
 ```json
 {
-  "bannerAdId": "ca-app-pub-NEW_ID"
+  "banner_ad_id": "ca-app-pub-NEW_ID"
 }
 ```
 
@@ -204,8 +208,9 @@ Fail? → Use local defaults (lib/config/defaults.dart)
    server.com/api/main-config.json
    server.com/api/alt-config.json
 
-2. Update URLs in app:
-   lib/config/remote_config.dart
+2. Update URLs in `assets/app_config.json`:
+   "main_config_url": "https://server.com/api/main-config.json",
+   "alt_config_url": "https://server.com/api/alt-config.json"
    
 3. Change config anytime → App gets new config on next start
 ```
@@ -219,7 +224,7 @@ Fail? → Use local defaults (lib/config/defaults.dart)
    firebase deploy
 4. URLs become:
    https://your-project.web.app/api/main-config.json
-5. Update app URLs
+5. Update app URLs in `assets/app_config.json`
 ```
 
 ### **Option 3: GitHub** (Easy for testing)
@@ -228,7 +233,7 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 1. Create config files in GitHub repo
 2. Use Raw URLs:
    https://raw.githubusercontent.com/your-user/your-repo/main/config/main-config.json
-3. Update app URLs
+3. Update app URLs in `assets/app_config.json`
 ```
 
 ### **Option 4: JSONBin.io** (Easy, no setup)
@@ -237,7 +242,7 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 1. Go to https://jsonbin.io
 2. Create new bin with JSON content
 3. Get URL from "Share" button
-4. Update app URLs
+4. Update app URLs in `assets/app_config.json`
 ```
 
 ---
@@ -246,38 +251,38 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 
 ```json
 {
-  "reviewMode": false,
-  "streamingEnabled": true,
-  "adsEnabled": true,
-  "bannerEnabled": true,
-  "rewardedEnabled": true,
-  "appOpenEnabled": true,
-  "interstitialEnabled": true,
+  "review_mode": false,
+  "streaming_enabled": true,
+  "ads_enabled": true,
+  "banner_enabled": true,
+  "rewarded_enabled": true,
+  "app_open_enabled": true,
+  "interstitial_enabled": true,
   
-  "bannerAdId": "ca-app-pub-5525538810839147/3825132304",
-  "rewardedAdId": "ca-app-pub-5525538810839147/6942250234",
-  "appOpenAdId": "ca-app-pub-5525538810839147/1223019695",
-  "interstitialAdId": "ca-app-pub-5525538810839147/4446428920",
+  "banner_ad_id": "ca-app-pub-5525538810839147/3825132304",
+  "rewarded_ad_id": "ca-app-pub-5525538810839147/6942250234",
+  "app_open_ad_id": "ca-app-pub-5525538810839147/1223019695",
+  "interstitial_ad_id": "ca-app-pub-5525538810839147/4446428920",
   
-  "maintenanceMode": false,
-  "maintenanceMessage": "App is under maintenance. Please try again later.",
-  "appMessage": "Welcome to YoSinTV v1.1.0!",
-  "appMessageType": "info",
+  "maintenance_mode": false,
+  "maintenance_message": "App is under maintenance. Please try again later.",
+  "app_message": "Welcome to YoSinTV v1.1.0!",
+  "app_message_type": "info",
   
-  "whatsappLink": "https://wa.me/1234567890",
-  "telegramLink": "https://t.me/yosintv",
+  "whatsapp_link": "https://wa.me/1234567890",
+  "telegram_link": "https://t.me/yosintv",
   
-  "popupEnabled": false,
-  "popupTitle": "Welcome to YoSinTV",
-  "popupText": "Your daily sports companion!",
+  "popup_enabled": false,
+  "popup_title": "Welcome to YoSinTV",
+  "popup_text": "Your daily sports companion!",
   
-  "matchLinks": [],
+  "match_links": [],
   "articles": [],
   
-  "footballApiUrl": "https://api.singhs.com.np/api/football-matches.json",
-  "cricketApiUrl": "https://api.singhs.com.np/api/cricket-matches.json",
-  "articlesApiUrl": "https://api.singhs.com.np/api/articles.json",
-  "altConfigUrl": "https://api.singhs.com.np/api/alt-config.json"
+  "football_api_url": "https://api.singhs.com.np/api/football-matches.json",
+  "cricket_api_url": "https://api.singhs.com.np/api/cricket-matches.json",
+  "articles_api_url": "https://api.singhs.com.np/api/articles.json",
+  "alt_config_url": "https://api.singhs.com.np/api/alt-config.json"
 }
 ```
 
@@ -285,8 +290,8 @@ Fail? → Use local defaults (lib/config/defaults.dart)
 
 ## 🧪 Testing Config Changes Locally
 
-### **Method 1: Modify Local Defaults**
-Edit `lib/config/defaults.dart` and rebuild:
+### **Method 1: Modify Assets**
+Edit `assets/app_config.json` and rebuild:
 ```bash
 flutter run
 ```
@@ -297,12 +302,12 @@ cd config/
 python -m http.server 8000
 ```
 
-Then update URLs in app to `http://localhost:8000/main-config.json`
+Then update URLs in `assets/app_config.json` to `http://localhost:8000/main-config.json`
 
 ### **Method 3: Use Online JSON Hosting**
 1. Copy JSON to https://jsonbin.io
 2. Get shareable URL
-3. Update app URLs temporarily
+3. Update app URLs temporarily in `assets/app_config.json`
 4. Test changes
 
 ---
@@ -311,13 +316,13 @@ Then update URLs in app to `http://localhost:8000/main-config.json`
 
 | Feature | Config Key | On | Off |
 |---------|-----------|----|----|
-| **Ads (All)** | adsEnabled | Ads show | No ads |
-| **Banner Ads** | bannerEnabled | Every 3 items | No banners |
-| **Interstitial** | interstitialEnabled | Match detail | Skip fullscreen ad |
-| **App Open** | appOpenEnabled | On resume | Skip resume ad |
-| **Streaming** | streamingEnabled | Show links | Hide links |
-| **Review Mode** | reviewMode | No ads | Ads enabled |
-| **Maintenance** | maintenanceMode | Block app | Normal |
+| **Ads (All)** | ads_enabled | Ads show | No ads |
+| **Banner Ads** | banner_enabled | Every 3 items | No banners |
+| **Interstitial** | interstitial_enabled | Match detail | Skip fullscreen ad |
+| **App Open** | app_open_enabled | On resume | Skip resume ad |
+| **Streaming** | streaming_enabled | Show links | Hide links |
+| **Review Mode** | review_mode | No ads | Ads enabled |
+| **Maintenance** | maintenance_mode | Block app | Normal |
 
 ---
 
@@ -363,7 +368,7 @@ https://api.singhs.com.np/api/main-config.json
 https://api.singhs.com.np/api/alt-config.json
 ```
 
-**To change:** Update `lib/config/remote_config.dart`
+**To change:** Update `assets/app_config.json`
 
 ---
 
@@ -371,7 +376,7 @@ https://api.singhs.com.np/api/alt-config.json
 
 **If main-config fails:**
 ```
-App tries alt-config.json → If alt fails → Use local defaults
+App tries alt-config.json → If alt fails → Stays with assets/app_config.json values
 ```
 
 **This ensures app always works**, even if both remote configs are down!
@@ -383,32 +388,32 @@ App tries alt-config.json → If alt fails → Use local defaults
 ### Morning Deployment:
 ```json
 {
-  "appMessage": "🔴 LIVE NOW: India vs Pakistan Cricket!",
-  "appMessageType": "warning"
+  "app_message": "🔴 LIVE NOW: India vs Pakistan Cricket!",
+  "app_message_type": "warning"
 }
 ```
 
 ### Evening:
 ```json
 {
-  "appMessage": "📊 Match Highlights: India wins by 50 runs!",
-  "appMessageType": "info"
+  "app_message": "📊 Match Highlights: India wins by 50 runs!",
+  "app_message_type": "info"
 }
 ```
 
 ### Before App Review:
 ```json
 {
-  "reviewMode": true,
-  "adsEnabled": false
+  "review_mode": true,
+  "ads_enabled": false
 }
 ```
 
 ### After Approval:
 ```json
 {
-  "reviewMode": false,
-  "adsEnabled": true
+  "review_mode": false,
+  "ads_enabled": true
 }
 ```
 
@@ -429,11 +434,10 @@ App tries alt-config.json → If alt fails → Use local defaults
 
 ## 🎯 Next: Update App URLs
 
-If hosting configs on different server, update:
-```dart
-// lib/config/remote_config.dart
-final String primaryUrl = 'YOUR_CONFIG_URL/main-config.json';
-final String fallbackUrl = 'YOUR_CONFIG_URL/alt-config.json';
+If hosting configs on different server, update `assets/app_config.json`:
+```json
+  "main_config_url": "YOUR_CONFIG_URL/main-config.json",
+  "alt_config_url": "YOUR_CONFIG_URL/alt-config.json"
 ```
 
 Then rebuild app:
@@ -443,6 +447,6 @@ flutter run
 
 ---
 
-**Your app is now fully controlled via these two JSON files!** 🎉
+**Your app is now fully controlled via these JSON files!** 🎉
 
 Make changes anytime → Users get updates on next app launch → No Store update needed!

@@ -7,7 +7,6 @@ import '../../models/match.dart';
 import '../../widgets/ad_banner_widget.dart';
 import '../../services/ad_service.dart';
 import '../../theme/app_colors.dart';
-import 'package:intl/intl.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -27,8 +26,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  Map<String, dynamic> _getTournamentMetadata(String name, String sport) {
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  Map<String, dynamic> _getTournamentMetadata(String name, String? sport) {
     final lowerName = name.toLowerCase();
+    final lowerSport = (sport ?? 'football').toLowerCase();
+
     if (lowerName.contains('indian premier league') || lowerName == 'ipl') {
       return {'label': 'IPL', 'icon': Icons.sports_cricket_rounded};
     }
@@ -58,7 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return {
       'label': label, 
-      'icon': sport.toLowerCase() == 'cricket' ? Icons.sports_cricket_rounded : Icons.sports_soccer_rounded
+      'icon': lowerSport == 'cricket' ? Icons.sports_cricket_rounded : Icons.sports_soccer_rounded
     };
   }
 
@@ -67,9 +75,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       bool matchesFilter = _selectedFilter == 'All';
       if (!matchesFilter) {
         final meta = _getTournamentMetadata(match.leagueName, match.sport);
+        final sportLabel = match.sport.isNotEmpty 
+            ? match.sport[0].toUpperCase() + match.sport.substring(1)
+            : '';
+            
         matchesFilter = _selectedFilter == meta['label'] || 
                         _selectedFilter == match.leagueName ||
-                        _selectedFilter == (match.sport[0].toUpperCase() + match.sport.substring(1));
+                        _selectedFilter == sportLabel;
       }
       final matchesSearch = _searchQuery.isEmpty ||
           match.teamA.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -86,11 +98,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final football = footballAsync.value ?? [];
     final cricket = cricketAsync.value ?? [];
-    final allMatches = [...football, ...cricket];
+    final List<Match> allMatches = [...football, ...cricket];
     
     allMatches.sort((a, b) {
-      if (a.status == b.status) {
-        if (a.status == MatchStatus.upcoming) {
+      final aStatus = a.status;
+      final bStatus = b.status;
+      if (aStatus == bStatus) {
+        if (aStatus == MatchStatus.upcoming) {
           final ta = a.countdown;
           final tb = b.countdown;
           if (ta == null && tb == null) return 0;
@@ -100,7 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
         return 0;
       }
-      return a.status.index.compareTo(b.status.index);
+      return aStatus.index.compareTo(bStatus.index);
     });
 
     final filteredMatches = _getFilteredMatches(allMatches);
@@ -108,8 +122,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final List<String> filterLabels = ['All', 'Cricket', 'Football'];
     final Set<String> seenLeagues = {};
     for (var m in allMatches) {
-      final label = _getTournamentMetadata(m.leagueName, m.sport)['label'];
-      if (!seenLeagues.contains(label) && label != 'Cricket' && label != 'Football') {
+      final meta = _getTournamentMetadata(m.leagueName, m.sport);
+      final label = meta['label'] as String?;
+      if (label != null && !seenLeagues.contains(label) && label != 'Cricket' && label != 'Football') {
         filterLabels.add(label);
         seenLeagues.add(label);
       }
@@ -140,7 +155,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Good ${DateTime.now().hour < 12 ? 'Morning' : 'Evening'}',
+                                _getGreeting(),
                                 style: const TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 14,
@@ -227,6 +242,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               );
                             }
                             final dataIndex = index - (index ~/ 4);
+                            if (dataIndex < 0 || dataIndex >= filteredMatches.length) {
+                               return null;
+                            }
                             return _buildMatchCard(filteredMatches[dataIndex]);
                           },
                           childCount: filteredMatches.length + (filteredMatches.length ~/ 3),
@@ -251,11 +269,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         itemBuilder: (context, index) {
           final label = labels[index];
           final isSelected = _selectedFilter == label;
-          final sampleMatch = allMatches.firstWhere(
-            (m) => _getTournamentMetadata(m.leagueName, m.sport)['label'] == label,
-            orElse: () => Match(id: '', league: '', leagueName: '', teamA: '', teamALogo: '', teamB: '', teamBLogo: '', channel: '', quality: '', sport: label == 'Cricket' ? 'cricket' : 'football'),
-          );
-          final icon = _getTournamentMetadata(label, sampleMatch.sport)['icon'];
+          
+          Match? sampleMatch;
+          try {
+             sampleMatch = allMatches.firstWhere(
+              (m) => _getTournamentMetadata(m.leagueName, m.sport)['label'] == label,
+            );
+          } catch (_) {}
+
+          final sport = sampleMatch?.sport ?? (label == 'Cricket' ? 'cricket' : 'football');
+          final icon = _getTournamentMetadata(label, sport)['icon'];
 
           return Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -352,21 +375,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildMatchCard(Match match) {
+    final status = match.status;
     String statusText = 'Starting Soon';
-    if (match.status == MatchStatus.live) statusText = 'LIVE';
-    if (match.status == MatchStatus.fullTime) statusText = 'Match Finished';
+    if (status == MatchStatus.live) statusText = 'LIVE';
+    if (status == MatchStatus.fullTime) statusText = 'Match Finished';
                 
     String timeText = match.time ?? '';
-    if (match.status == MatchStatus.upcoming && match.countdown != null) {
-      final cd = match.countdown!;
-      timeText = 'Starts in ${cd.inHours}h ${cd.inMinutes % 60}m';
+    if (status == MatchStatus.upcoming) {
+      final cd = match.countdown;
+      if (cd != null) {
+        timeText = 'Starts in ${cd.inHours}h ${cd.inMinutes % 60}m';
+      }
     }
 
     return GestureDetector(
       onTap: () {
-        ref.read(adServiceProvider).showInterstitialAd(onAdDismissed: () {
-          context.push('/match-detail', extra: match);
-        });
+        // Updated logic: show Rewarded Ad when the match is selected
+        ref.read(adServiceProvider).showRewardedAd(
+          onUserEarnedReward: (reward) {
+            context.push('/match-detail', extra: match);
+          },
+          onAdDismissed: () {
+            context.push('/match-detail', extra: match);
+          }
+        );
       },
       child: MatchCard(
         leagueName: match.leagueName,

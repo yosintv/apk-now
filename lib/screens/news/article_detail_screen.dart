@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/article.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/banner_ad_widget.dart';
 
 class ArticleDetailScreen extends StatelessWidget {
   final Article article;
@@ -9,6 +10,9 @@ class ArticleDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = article.imageUrl;
+    final content = article.content;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -35,10 +39,9 @@ class ArticleDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Featured Image
-            if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
+            if (imageUrl != null && imageUrl.isNotEmpty)
               Image.network(
-                article.imageUrl!,
+                imageUrl,
                 width: double.infinity,
                 height: 250,
                 fit: BoxFit.cover,
@@ -54,7 +57,6 @@ class ArticleDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 2. Meta Info (Category & Time)
                   Row(
                     children: [
                       Container(
@@ -87,8 +89,6 @@ class ArticleDetailScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // 3. Title
                   Text(
                     article.title,
                     style: const TextStyle(
@@ -99,8 +99,6 @@ class ArticleDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // 4. Excerpt/Snippet (Italicized)
                   if (article.excerpt.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -120,9 +118,7 @@ class ArticleDetailScreen extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 24),
-
-                  // 5. Content Paragraphs
-                  ...article.content.map((paragraph) => Padding(
+                  ...content.map((paragraph) => Padding(
                         padding: const EdgeInsets.only(bottom: 20),
                         child: Text(
                           paragraph,
@@ -134,13 +130,15 @@ class ArticleDetailScreen extends StatelessWidget {
                           ),
                         ),
                       )),
-                  
                   const SizedBox(height: 40),
                 ],
               ),
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: const SafeArea(
+        child: BannerAdWidget(),
       ),
     );
   }

@@ -7,7 +7,6 @@ import '../providers/matches_provider.dart';
 import '../widgets/ad_banner_widget.dart';
 import '../models/match.dart';
 import '../services/ad_service.dart';
-import 'package:intl/intl.dart';
 
 class FootballScreen extends ConsumerStatefulWidget {
   const FootballScreen({super.key});
@@ -22,7 +21,6 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
   Map<String, dynamic> _getTournamentMetadata(String name) {
     final lowerName = name.toLowerCase();
     
-    // Priority mappings for football
     if (lowerName.contains('premier league') || lowerName == 'pl') {
       return {'label': 'PL', 'icon': Icons.sports_soccer_rounded};
     }
@@ -36,10 +34,9 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
       return {'label': 'FIFA', 'icon': Icons.public_rounded};
     }
 
-    // Dynamic Shortening
     String label = name;
     if (name.contains(',')) {
-      label = name.split(',')[0]; // E.g., "CONMEBOL Sudamericana, Group D" -> "CONMEBOL Sudamericana"
+      label = name.split(',')[0]; 
     }
     if (label.length > 15) {
       label = label.substring(0, 13) + '..';
@@ -83,7 +80,6 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
             );
           }
 
-          // Dynamic Filter Generation based on the data
           final List<String> filterLabels = ['All'];
           final Set<String> seenLabels = {};
           for (var m in allMatches) {
@@ -101,7 +97,6 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
 
           return Column(
             children: [
-              // Horizontal Dynamic Filter Chips
               Container(
                 height: 60,
                 padding: const EdgeInsets.symmetric(vertical: 10),
@@ -152,21 +147,24 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
                       }
 
                       final dataIndex = index - (index ~/ 4);
+                      if (dataIndex >= filteredMatches.length) return null;
                       final Match match = filteredMatches[dataIndex];
                       
+                      final matchStatus = match.status;
                       String statusText = 'Starting Soon';
-                      if (match.status == MatchStatus.live) statusText = 'LIVE';
-                      if (match.status == MatchStatus.fullTime) statusText = 'Match Finished';
+                      if (matchStatus == MatchStatus.live) statusText = 'LIVE';
+                      if (matchStatus == MatchStatus.fullTime) statusText = 'Match Finished';
                       
                       String timeText = match.time ?? '';
-                      if (match.status == MatchStatus.upcoming && match.countdown != null) {
-                        final cd = match.countdown!;
-                        timeText = 'Starts in ${cd.inHours}h ${cd.inMinutes % 60}m';
+                      if (matchStatus == MatchStatus.upcoming) {
+                        final cd = match.countdown;
+                        if (cd != null) {
+                          timeText = 'Starts in ${cd.inHours}h ${cd.inMinutes % 60}m';
+                        }
                       }
 
                       return GestureDetector(
                         onTap: () {
-                          // Requirement: Trigger Interstitial Ad on match click
                           ref.read(adServiceProvider).showInterstitialAd(onAdDismissed: () {
                             context.push('/match-detail', extra: match);
                           });

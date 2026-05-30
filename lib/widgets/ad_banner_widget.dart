@@ -21,33 +21,38 @@ class _AdBannerWidgetState extends ConsumerState<AdBannerWidget> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final isInit = ref.watch(adSdkInitializedProvider);
+    // Use ref.read here to avoid re-triggering logic on every build cycle
+    final isInit = ref.read(adSdkInitializedProvider);
     if (isInit && _bannerAd == null && !_isLoading) {
       _loadAd();
     }
   }
 
   Future<void> _loadAd() async {
-    // Basic cooldown to prevent "Too many recently failed requests" (Error Code 1)
-    if (_lastFailTime != null && 
-        DateTime.now().difference(_lastFailTime!).inSeconds < 15) {
+    final lastFail = _lastFailTime;
+    if (lastFail != null && 
+        DateTime.now().difference(lastFail).inSeconds < 15) {
       return;
     }
 
     final adService = ref.read(adServiceProvider);
     final config = ref.read(configProvider);
 
-    if (!adService.adsAllowed || !config.bannerEnabled) return;
+    if (!adService.adsAllowed || !config.bannerEnabled || adService.bannerAdId.isEmpty) return;
+
+    if (!mounted) return;
+    
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery == null) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final AnchoredAdaptiveBannerAdSize? size =
-          await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
-              MediaQuery.of(context).size.width.truncate());
+      final size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
+          mediaQuery.size.width.truncate());
 
       if (size == null) {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
 
@@ -57,7 +62,6 @@ class _AdBannerWidgetState extends ConsumerState<AdBannerWidget> {
         request: const AdRequest(),
         listener: BannerAdListener(
           onAdLoaded: (ad) {
-            debugPrint('AdMob: [Banner] Loaded Successfully ✅');
             if (mounted) {
               setState(() {
                 _isLoaded = true;
@@ -67,7 +71,6 @@ class _AdBannerWidgetState extends ConsumerState<AdBannerWidget> {
             }
           },
           onAdFailedToLoad: (ad, error) {
-            debugPrint('AdMob: [Banner] Failed ❌ Code: ${error.code} - ${error.message}');
             ad.dispose();
             if (mounted) {
               setState(() {
@@ -95,16 +98,18 @@ class _AdBannerWidgetState extends ConsumerState<AdBannerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoaded && _bannerAd != null && _adSize != null) {
+    final ad = _bannerAd;
+    final size = _adSize;
+    
+    if (_isLoaded && ad != null && size != null) {
       return Container(
-        width: _adSize!.width.toDouble(),
-        height: _adSize!.height.toDouble(),
+        width: size.width.toDouble(),
+        height: size.height.toDouble(),
         margin: const EdgeInsets.symmetric(vertical: 8),
         alignment: Alignment.center,
-        child: AdWidget(ad: _bannerAd!),
+        child: AdWidget(ad: ad),
       );
     }
-    // Return a fixed height placeholder while loading or if failed to prevent layout jumping
     return const SizedBox(height: 50);
   }
 }

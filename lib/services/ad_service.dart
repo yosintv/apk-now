@@ -33,9 +33,8 @@ class AdService {
   DateTime? _lastInterstitialTime;
   int _matchClickCount = 0;
   
-  // Adjusted thresholds for premium UX
-  final int _clicksRequired = 4; // Show ad every 4th match click
-  final Duration _minInterval = const Duration(minutes: 2); // At least 2 mins apart
+  final int _clicksRequired = 4;
+  final Duration _minInterval = const Duration(minutes: 2);
 
   AdService(this._config);
 
@@ -73,9 +72,10 @@ class AdService {
   }
 
   void showAppOpenAdIfAvailable() {
-    if (!adsAllowed || _isShowingAd || _appOpenAd == null) return;
+    final ad = _appOpenAd;
+    if (!adsAllowed || _isShowingAd || ad == null) return;
     
-    _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
+    ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) => _isShowingAd = true,
       onAdDismissedFullScreenContent: (ad) {
         _isShowingAd = false;
@@ -83,8 +83,14 @@ class AdService {
         _appOpenAd = null;
         loadAppOpenAd();
       },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        _isShowingAd = false;
+        ad.dispose();
+        _appOpenAd = null;
+        loadAppOpenAd();
+      }
     );
-    _appOpenAd!.show();
+    ad.show();
   }
 
   // --- Interstitial Ad ---
@@ -104,18 +110,20 @@ class AdService {
     _matchClickCount++;
     final now = DateTime.now();
     
-    bool timeReached = _lastInterstitialTime == null || 
-                      now.difference(_lastInterstitialTime!) > _minInterval;
+    final lastTime = _lastInterstitialTime;
+    bool timeReached = lastTime == null || 
+                      now.difference(lastTime) > _minInterval;
     bool clicksReached = _matchClickCount >= _clicksRequired;
 
-    // Logic: If not ready or cap not met, bypass silently (No "failed" alert to user)
-    if (!adsAllowed || _interstitialAd == null || !timeReached || !clicksReached) {
+    final ad = _interstitialAd;
+
+    if (!adsAllowed || ad == null || !timeReached || !clicksReached) {
       onAdDismissed();
-      if (_interstitialAd == null) loadInterstitialAd();
+      if (ad == null) loadInterstitialAd();
       return;
     }
 
-    _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+    ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         _lastInterstitialTime = DateTime.now();
         _matchClickCount = 0;
@@ -131,7 +139,7 @@ class AdService {
         onAdDismissed();
       },
     );
-    _interstitialAd!.show();
+    ad.show();
   }
 
   // --- Rewarded Ad ---
@@ -148,19 +156,26 @@ class AdService {
   }
 
   void showRewardedAd({required void Function(RewardItem) onUserEarnedReward, VoidCallback? onAdDismissed}) {
-    if (!adsAllowed || _rewardedAd == null) {
+    final ad = _rewardedAd;
+    if (!adsAllowed || ad == null) {
       onAdDismissed?.call();
       loadRewardedAd();
       return;
     }
-    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+    ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _rewardedAd = null;
         loadRewardedAd();
         onAdDismissed?.call();
       },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        _rewardedAd = null;
+        loadRewardedAd();
+        onAdDismissed?.call();
+      }
     );
-    _rewardedAd!.show(onUserEarnedReward: (ad, reward) => onUserEarnedReward(reward));
+    ad.show(onUserEarnedReward: (ad, reward) => onUserEarnedReward(reward));
   }
 }
