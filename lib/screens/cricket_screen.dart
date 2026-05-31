@@ -6,7 +6,6 @@ import '../widgets/match_card.dart';
 import '../providers/matches_provider.dart';
 import '../widgets/ad_banner_widget.dart';
 import '../models/match.dart';
-import '../services/ad_service.dart';
 
 class CricketScreen extends ConsumerStatefulWidget {
   const CricketScreen({super.key});
@@ -146,9 +145,7 @@ class _CricketScreenState extends ConsumerState<CricketScreen> {
 
                       return GestureDetector(
                         onTap: () {
-                          ref.read(adServiceProvider).showInterstitialAd(onAdDismissed: () {
-                            context.push('/match-detail', extra: match);
-                          });
+                          context.push('/match-detail', extra: match);
                         },
                         child: MatchCard(
                           leagueName: match.leagueName,

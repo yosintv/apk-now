@@ -10,10 +10,33 @@ import '../../providers/streaming_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../widgets/banner_ad_widget.dart';
 
-class MatchDetailScreen extends ConsumerWidget {
+class MatchDetailScreen extends ConsumerStatefulWidget {
   final Match match;
 
   const MatchDetailScreen({super.key, required this.match});
+
+  @override
+  ConsumerState<MatchDetailScreen> createState() => _MatchDetailScreenState();
+}
+
+class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 1000ms delay before showing rewarded ad
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) {
+        ref.read(adServiceProvider).showRewardedAd(
+          onUserEarnedReward: (reward) {
+            // Reward earned logic if needed
+          },
+          onAdDismissed: () {
+            // Ad dismissed logic
+          },
+        );
+      }
+    });
+  }
 
   String _formatDateTime(String? dateTimeStr) {
     if (dateTimeStr == null || dateTimeStr.isEmpty) return 'TBD';
@@ -26,8 +49,9 @@ class MatchDetailScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final config = ref.watch(configProvider);
+    final match = widget.match;
     
     // Helper to safely access Map keys
     Map<String, dynamic> getMap(dynamic data) {
@@ -87,13 +111,13 @@ class MatchDetailScreen extends ConsumerWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildTeamHeader(),
+            _buildTeamHeader(match),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildPreviewCard(),
+                  _buildPreviewCard(match),
                   const SizedBox(height: 24),
                   
                   _buildSectionHeader(Icons.info_outline_rounded, 'Match Information'),
@@ -126,7 +150,7 @@ class MatchDetailScreen extends ConsumerWidget {
                   if (pregameForm.isNotEmpty) ...[
                     _buildSectionHeader(Icons.analytics_outlined, 'Pregame Form'),
                     const SizedBox(height: 12),
-                    _buildPregameFormCard(pregameForm, getMap),
+                    _buildPregameFormCard(match, pregameForm, getMap),
                     const SizedBox(height: 24),
                   ],
                   
@@ -135,7 +159,7 @@ class MatchDetailScreen extends ConsumerWidget {
                     if (matchStatus == MatchStatus.live) ...[
                       _buildSectionHeader(Icons.play_circle_outline_rounded, 'Watch Live Stream'),
                       const SizedBox(height: 12),
-                      _buildStreamingSection(context, ref),
+                      _buildStreamingSection(context, ref, match),
                     ] else if (matchStatus == MatchStatus.upcoming) ...[
                       _buildStatusNotice(
                         Icons.timer_outlined, 
@@ -167,7 +191,7 @@ class MatchDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 32),
                   _buildSectionHeader(Icons.history_rounded, 'Head-to-Head'),
                   const SizedBox(height: 12),
-                  _buildH2HCard(getMap(footballData['h2h'])),
+                  _buildH2HCard(match, getMap(footballData['h2h'])),
                   
                   const SizedBox(height: 40),
                 ],
@@ -182,13 +206,13 @@ class MatchDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStreamingSection(BuildContext context, WidgetRef ref) {
+  Widget _buildStreamingSection(BuildContext context, WidgetRef ref, Match match) {
     final streamUrl = match.streamingUrl;
     if (streamUrl != null && streamUrl.isNotEmpty) {
       final streamData = ref.watch(streamingLinksProvider(streamUrl));
       return streamData.when(
         data: (config) {
-          if (config == null || config.events.isEmpty) return _buildStaticLinks(context, ref);
+          if (config == null || config.events.isEmpty) return _buildStaticLinks(context, ref, match);
           
           final List<Widget> linkWidgets = [];
           int serverIndex = 1;
@@ -222,20 +246,20 @@ class MatchDetailScreen extends ConsumerWidget {
             }
           }
 
-          if (linkWidgets.isEmpty) return _buildStaticLinks(context, ref);
+          if (linkWidgets.isEmpty) return _buildStaticLinks(context, ref, match);
 
           return Column(
             children: linkWidgets.map((w) => Padding(padding: const EdgeInsets.only(top: 12), child: w)).toList(),
           );
         },
         loading: () => const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
-        error: (e, st) => _buildStaticLinks(context, ref),
+        error: (e, st) => _buildStaticLinks(context, ref, match),
       );
     }
-    return _buildStaticLinks(context, ref);
+    return _buildStaticLinks(context, ref, match);
   }
 
-  Widget _buildStaticLinks(BuildContext context, WidgetRef ref) {
+  Widget _buildStaticLinks(BuildContext context, WidgetRef ref, Match match) {
     final List<String> links = [...match.streamUrls];
     if (match.detailsUrl.isNotEmpty) links.insert(0, match.detailsUrl);
     if (links.isEmpty) return const SizedBox.shrink();
@@ -265,8 +289,6 @@ class MatchDetailScreen extends ConsumerWidget {
   }) {
     return InkWell(
       onTap: () {
-        // Rewarded ad removed from here as per user request.
-        // It's now shown when selecting a match in HomeScreen.
         _launchURL(url);
       },
       borderRadius: BorderRadius.circular(20),
@@ -331,7 +353,7 @@ class MatchDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPregameFormCard(Map<String, dynamic> form, Map<String, dynamic> Function(dynamic) getMap) {
+  Widget _buildPregameFormCard(Match match, Map<String, dynamic> form, Map<String, dynamic> Function(dynamic) getMap) {
     final home = getMap(form['homeTeam']);
     final away = getMap(form['awayTeam']);
     return Container(
@@ -417,7 +439,7 @@ class MatchDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTeamHeader() {
+  Widget _buildTeamHeader(Match match) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
@@ -462,7 +484,7 @@ class MatchDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPreviewCard() {
+  Widget _buildPreviewCard(Match match) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -511,7 +533,7 @@ class MatchDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildH2HCard(Map<String, dynamic> h2h) {
+  Widget _buildH2HCard(Match match, Map<String, dynamic> h2h) {
     if (h2h.isEmpty) return const SizedBox.shrink();
     final homeWins = h2h['homeWins'] ?? 0;
     final awayWins = h2h['awayWins'] ?? 0;

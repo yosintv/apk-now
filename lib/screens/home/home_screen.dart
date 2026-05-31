@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../widgets/match_card.dart';
-import '../../providers/matches_provider.dart';
 import '../../models/match.dart';
-import '../../widgets/ad_banner_widget.dart';
-import '../../services/ad_service.dart';
+import '../../providers/matches_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/match_card.dart';
+import '../../widgets/ad_banner_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -16,7 +15,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  String _selectedFilter = 'All'; 
+  String _selectedFilter = 'All';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
@@ -26,69 +25,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  }
-
-  Map<String, dynamic> _getTournamentMetadata(String name, String? sport) {
-    final lowerName = name.toLowerCase();
-    final lowerSport = (sport ?? 'football').toLowerCase();
-
-    if (lowerName.contains('indian premier league') || lowerName == 'ipl') {
-      return {'label': 'IPL', 'icon': Icons.sports_cricket_rounded};
+  Map<String, dynamic> _getTournamentMetadata(String? leagueName, String sport) {
+    if (leagueName == null) {
+      return {'label': sport == 'cricket' ? 'Cricket' : 'Football', 'icon': sport == 'cricket' ? Icons.sports_cricket : Icons.sports_soccer};
     }
-    if (lowerName.contains('premier league') || lowerName == 'pl') {
-      return {'label': 'PL', 'icon': Icons.sports_soccer_rounded};
+    
+    final name = leagueName.toLowerCase();
+    if (name.contains('ipl') || name.contains('premier league')) {
+      return {'label': 'IPL', 'icon': Icons.sports_cricket};
+    } else if (name.contains('t20') || name.contains('world cup')) {
+      return {'label': 'World Cup', 'icon': Icons.sports_cricket};
+    } else if (name.contains('la liga') || name.contains('laliga')) {
+      return {'label': 'La Liga', 'icon': Icons.sports_soccer};
+    } else if (name.contains('champions league') || name.contains('ucl')) {
+      return {'label': 'UCL', 'icon': Icons.sports_soccer};
     }
-    if (lowerName.contains('serie a') || lowerName == 'sa') {
-      return {'label': 'SA', 'icon': Icons.shield_rounded};
-    }
-    if (lowerName.contains('fifa') || lowerName.contains('world cup')) {
-      return {'label': 'FIFA', 'icon': Icons.public_rounded};
-    }
-    if (name == 'Football') {
-      return {'label': 'Football', 'icon': Icons.sports_soccer_rounded};
-    }
-    if (name == 'Cricket') {
-      return {'label': 'Cricket', 'icon': Icons.sports_cricket_rounded};
-    }
-
-    String label = name;
-    if (name.contains(',')) {
-      label = name.split(',')[0];
-    }
-    if (label.length > 12) {
-      label = label.substring(0, 10) + '..';
-    }
-
+    
     return {
-      'label': label, 
-      'icon': lowerSport == 'cricket' ? Icons.sports_cricket_rounded : Icons.sports_soccer_rounded
+      'label': sport == 'cricket' ? 'Cricket' : 'Football',
+      'icon': sport == 'cricket' ? Icons.sports_cricket : Icons.sports_soccer
     };
   }
 
-  List<Match> _getFilteredMatches(List<Match> allMatches) {
-    return allMatches.where((match) {
-      bool matchesFilter = _selectedFilter == 'All';
-      if (!matchesFilter) {
-        final meta = _getTournamentMetadata(match.leagueName, match.sport);
-        final sportLabel = match.sport.isNotEmpty 
-            ? match.sport[0].toUpperCase() + match.sport.substring(1)
-            : '';
-            
-        matchesFilter = _selectedFilter == meta['label'] || 
-                        _selectedFilter == match.leagueName ||
-                        _selectedFilter == sportLabel;
-      }
-      final matchesSearch = _searchQuery.isEmpty ||
-          match.teamA.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          match.teamB.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          match.leagueName.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesFilter && matchesSearch;
+  List<Match> _getFilteredMatches(List<Match> matches) {
+    return matches.where((m) {
+      final matchesSearch = m.teamA.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          m.teamB.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (m.leagueName.toLowerCase().contains(_searchQuery.toLowerCase()));
+      
+      if (!matchesSearch) return false;
+
+      if (_selectedFilter == 'All') return true;
+      if (_selectedFilter == 'Cricket') return m.sport == 'cricket';
+      if (_selectedFilter == 'Football') return m.sport == 'football';
+
+      final meta = _getTournamentMetadata(m.leagueName, m.sport);
+      return meta['label'] == _selectedFilter;
     }).toList();
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning ☀️';
+    if (hour < 17) return 'Good Afternoon 🌤️';
+    return 'Good Evening 🌙';
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.sports_soccer_outlined, size: 80, color: AppColors.textSecondary.withOpacity(0.2)),
+          const SizedBox(height: 16),
+          const Text(
+            'No matches found',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -375,13 +371,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildMatchCard(Match match) {
-    final status = match.status;
+    final matchStatus = match.status;
     String statusText = 'Starting Soon';
-    if (status == MatchStatus.live) statusText = 'LIVE';
-    if (status == MatchStatus.fullTime) statusText = 'Match Finished';
-                
+    if (matchStatus == MatchStatus.live) statusText = 'LIVE';
+    if (matchStatus == MatchStatus.fullTime) statusText = 'Match Finished';
+    
     String timeText = match.time ?? '';
-    if (status == MatchStatus.upcoming) {
+    if (matchStatus == MatchStatus.upcoming) {
       final cd = match.countdown;
       if (cd != null) {
         timeText = 'Starts in ${cd.inHours}h ${cd.inMinutes % 60}m';
@@ -390,15 +386,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return GestureDetector(
       onTap: () {
-        // Updated logic: show Rewarded Ad when the match is selected
-        ref.read(adServiceProvider).showRewardedAd(
-          onUserEarnedReward: (reward) {
-            context.push('/match-detail', extra: match);
-          },
-          onAdDismissed: () {
-            context.push('/match-detail', extra: match);
-          }
-        );
+        context.push('/match-detail', extra: match);
       },
       child: MatchCard(
         leagueName: match.leagueName,
@@ -409,37 +397,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         matchDateTime: timeText,
         stadiumName: match.stadium ?? 'TBD',
         matchStatus: statusText,
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 60),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFF1F3F5)),
-              ),
-              child: Icon(Icons.search_off_rounded, size: 40, color: AppColors.textSecondary.withOpacity(0.5)),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No matches found',
-              style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 16),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Try adjusting your filters or search',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-            ),
-          ],
-        ),
       ),
     );
   }
