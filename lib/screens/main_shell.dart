@@ -54,44 +54,10 @@ class MainShell extends ConsumerWidget {
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        title: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'YoSinTV',
-                style: TextStyle(
-                  color: Color(0xFF003E9B),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF003E9B),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                child: const Text(
-                  'Cricket | Football',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        title: Image.asset(
+          'assets/headerimage.png',
+          height: 35,
+          fit: BoxFit.contain,
         ),
         shape: Border(
           bottom: BorderSide(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/match.dart';
 import '../../theme/app_colors.dart';
@@ -13,6 +14,16 @@ class MatchDetailScreen extends ConsumerWidget {
   final Match match;
 
   const MatchDetailScreen({super.key, required this.match});
+
+  String _formatDateTime(String? dateTimeStr) {
+    if (dateTimeStr == null || dateTimeStr.isEmpty) return 'TBD';
+    try {
+      final DateTime dateTime = DateTime.parse(dateTimeStr).toLocal();
+      return DateFormat('MMM dd, HH:mm').format(dateTime);
+    } catch (e) {
+      return dateTimeStr;
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -99,7 +110,7 @@ class MatchDetailScreen extends ConsumerWidget {
                         _buildInfoRow(Icons.emoji_events_outlined, 'League', match.leagueName),
                         if (event['round'] != null)
                           _buildInfoRow(Icons.numbers_rounded, 'Round', 'Round ${event['round']}'),
-                        _buildInfoRow(Icons.access_time, 'Kick-off', match.time ?? 'TBD'),
+                        _buildInfoRow(Icons.access_time, 'Kick-off', _formatDateTime(match.time)),
                         if (event['venue'] != null)
                           _buildInfoRow(Icons.location_on_outlined, 'Venue', event['venue'].toString()),
                         if (event['stadium_capacity'] != null)

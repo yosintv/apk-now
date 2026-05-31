@@ -9,6 +9,9 @@ class AppColors {
   
   static const Color background = Color(0xFFF8F9FA); // Very Light Gray
   static const Color surface = Color(0xFFFFFFFF); // Pure White
+
+  // Match Card
+  static const Color matchCardBackground = Color(0xFF050E40);
   
   // Text Colors
   static const Color textPrimary = Color(0xFF1D1D1F); // Near Black

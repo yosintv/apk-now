@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 
 class MatchCard extends StatelessWidget {
@@ -23,6 +24,15 @@ class MatchCard extends StatelessWidget {
     required this.matchStatus,
   });
 
+  String _formatDateTime(String dateTimeStr) {
+    try {
+      final DateTime dateTime = DateTime.parse(dateTimeStr).toLocal();
+      return DateFormat('MMM dd, HH:mm').format(dateTime);
+    } catch (e) {
+      return dateTimeStr;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isLive = matchStatus.toUpperCase() == 'LIVE';
@@ -30,16 +40,16 @@ class MatchCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.matchCardBackground,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF1F3F5), width: 1),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -64,17 +74,17 @@ class MatchCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.05),
+                          color: Colors.white.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(Icons.emoji_events_outlined, color: AppColors.primary, size: 14),
+                        child: const Icon(Icons.emoji_events_outlined, color: Colors.white70, size: 14),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           leagueName,
                           style: const TextStyle(
-                            color: AppColors.textSecondary,
+                            color: Colors.white70,
                             fontWeight: FontWeight.w700,
                             fontSize: 11,
                             letterSpacing: 0.2,
@@ -87,7 +97,7 @@ class MatchCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.accent.withOpacity(0.1),
+                            color: AppColors.accent.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Row(
@@ -117,7 +127,7 @@ class MatchCard extends StatelessWidget {
                         Text(
                           matchStatus,
                           style: TextStyle(
-                            color: AppColors.textSecondary.withOpacity(0.8),
+                            color: Colors.white.withOpacity(0.6),
                             fontWeight: FontWeight.w800,
                             fontSize: 10,
                           ),
@@ -139,7 +149,7 @@ class MatchCard extends StatelessWidget {
                               teamAName,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                color: AppColors.textPrimary,
+                                color: Colors.white,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 13,
                               ),
@@ -158,14 +168,14 @@ class MatchCard extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF8F9FA),
+                                color: Colors.white.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFE9ECEF)),
+                                border: Border.all(color: Colors.white.withOpacity(0.1)),
                               ),
                               child: const Text(
                                 "VS",
                                 style: TextStyle(
-                                  color: AppColors.primary,
+                                  color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w900,
                                 ),
@@ -185,7 +195,7 @@ class MatchCard extends StatelessWidget {
                               teamBName,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                color: AppColors.textPrimary,
+                                color: Colors.white,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 13,
                               ),
@@ -202,20 +212,20 @@ class MatchCard extends StatelessWidget {
                   // Bottom Info
                   Container(
                     padding: const EdgeInsets.only(top: 12),
-                    decoration: const BoxDecoration(
-                      border: Border(top: BorderSide(color: Color(0xFFF1F3F5), width: 1)),
+                    decoration: BoxDecoration(
+                      border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1), width: 1)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.calendar_today_outlined, color: AppColors.textSecondary, size: 12),
+                            const Icon(Icons.calendar_today_outlined, color: Colors.white60, size: 12),
                             const SizedBox(width: 6),
                             Text(
-                              matchDateTime,
+                              _formatDateTime(matchDateTime),
                               style: const TextStyle(
-                                color: AppColors.textSecondary,
+                                color: Colors.white60,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -225,12 +235,12 @@ class MatchCard extends StatelessWidget {
                         if (stadiumName.isNotEmpty && stadiumName != 'TBD')
                           Row(
                             children: [
-                              const Icon(Icons.location_on_outlined, color: AppColors.textSecondary, size: 12),
+                              const Icon(Icons.location_on_outlined, color: Colors.white60, size: 12),
                               const SizedBox(width: 4),
                               Text(
                                 stadiumName,
                                 style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                  color: Colors.white60,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -258,12 +268,12 @@ class MatchCard extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF1F3F5), width: 1),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       padding: const EdgeInsets.all(6),
       child: url.isNotEmpty

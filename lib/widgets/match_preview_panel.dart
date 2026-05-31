@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class MatchPreviewPanel extends StatelessWidget {
   final String teamALogo;
@@ -31,6 +32,15 @@ class MatchPreviewPanel extends StatelessWidget {
     required this.teamAForm,
     required this.teamBForm,
   });
+
+  String _formatDateTime(String dateTimeStr) {
+    try {
+      final DateTime dateTime = DateTime.parse(dateTimeStr).toLocal();
+      return DateFormat('MMM dd, HH:mm').format(dateTime);
+    } catch (e) {
+      return dateTimeStr;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +93,7 @@ class MatchPreviewPanel extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            matchDateTime,
+            _formatDateTime(matchDateTime),
             style: const TextStyle(
               color: Colors.white70,
               fontSize: 14,
