@@ -23,6 +23,13 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
       
+      - name: Generate Podfile
+        run: |
+          cd ios
+          flutter pub get
+          cd ..
+          flutter precache --ios
+      
       - name: Install CocoaPods
         run: |
           sudo gem install cocoapods
