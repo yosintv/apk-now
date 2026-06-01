@@ -1,127 +1,40 @@
-name: Flutter Build (iOS & Android)
+platform :ios, '12.0'
 
-on:
-  push:
-    branches: [ main, master, develop, feature/enhanced-ios-android-build ]
-  pull_request:
-    branches: [ main, master, develop ]
-  workflow_dispatch:
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-jobs:
-  # ─────────────────────────────────────────────
-  # iOS Build
-  # ─────────────────────────────────────────────
-  build-ios:
-    runs-on: macos-latest
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join(
+    File.dirname(__FILE__),
+    'Flutter',
+    'Generated.xcconfig',
+  ), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
+  File.expand_path(File.join(directories.join('/Flutter/'), '..', '..'), generated_xcode_build_settings_path)
+end
 
-      - name: Get Flutter dependencies
-        run: flutter pub get
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
-      - name: Build iOS app
-        run: |
-          flutter build ios --release --no-codesign 2>&1 | tee build.log
-          
-      - name: Check if build succeeded
-        run: |
-          if [ -d "ios/build/Release-iphoneos/Runner.app" ]; then
-            echo "✅ Build succeeded! Runner.app found"
-          else
-            echo "❌ Build failed! Runner.app not found"
-            echo "=== Build log ==="
-            cat build.log
-            exit 1
-          fi
+flutter_ios_podfile_setup
 
-      - name: Create unsigned IPA
-        run: |
-          BUILD_DIR="ios/build/Release-iphoneos"
-          PAYLOAD_DIR="$BUILD_DIR/Payload"
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
 
-          mkdir -p "$PAYLOAD_DIR"
-          cp -r "$BUILD_DIR/Runner.app" "$PAYLOAD_DIR/"
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
 
-          cd "$BUILD_DIR"
-          zip -r YoSinTV.ipa Payload/
-
-          echo "✅ IPA created successfully"
-          ls -lh YoSinTV.ipa
-
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: YoSinTV-iOS-IPA
-          path: ios/build/Release-iphoneos/YoSinTV.ipa
-          retention-days: 30
-
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ios/build/Release-iphoneos/YoSinTV.ipa
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ─────────────────────────────────────────────
-  # Android Build
-  # ─────────────────────────────────────────────
-  build-android:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Get Flutter dependencies
-        run: flutter pub get
-
-      - name: Build Android APK (Release)
-        run: flutter build apk --release
-
-      - name: Build Android App Bundle (Release)
-        run: flutter build appbundle --release
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: YoSinTV-Android-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
-
-      - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: YoSinTV-Android-AAB
-          path: build/app/outputs/bundle/release/app-release.aab
-          retention-days: 30
-
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+end
