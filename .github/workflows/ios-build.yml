@@ -23,14 +23,6 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
       
-      - name: Generate iOS build files
-        run: flutter build ios --release --no-codesign --dry-run
-      
-      - name: Install CocoaPods dependencies
-        run: |
-          cd ios
-          pod install --repo-update
-      
       - name: Build iOS (Release - No Codesign)
         run: |
           flutter build ios --release --no-codesign
