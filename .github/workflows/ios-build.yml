@@ -28,6 +28,11 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
+      - name: Create .env file
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: echo "$ENV_FILE" > .env
+
       - name: Build iOS app with verbose output
         run: |
           flutter build ios --release --no-codesign -v
@@ -91,6 +96,11 @@ jobs:
 
       - name: Get Flutter dependencies
         run: flutter pub get
+
+      - name: Create .env file
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: echo "$ENV_FILE" > .env
 
       - name: Build Android APK (Release)
         run: flutter build apk --release
