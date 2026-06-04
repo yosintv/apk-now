@@ -1,5 +1,6 @@
 // lib/models/app_config.dart
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 bool _toBool(dynamic value, bool defaultValue) {
   if (value == null) return defaultValue;
@@ -176,23 +177,23 @@ class AppConfig {
       interstitialEnabled: _toBool(json['interstitial_enabled'] ?? json['interstitialEnabled'], true),
       
       bannerAdId: isIOS 
-          ? (json['ios_banner_ad_id'] ?? json['iosBannerAdId'] ?? json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString()
-          : (json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_BANNER_AD_ID'] ?? json['ios_banner_ad_id'] ?? json['iosBannerAdId'] ?? json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString()
+          : (dotenv.env['BANNER_AD_ID'] ?? json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString(),
       rewardedAdId: isIOS 
-          ? (json['ios_rewarded_ad_id'] ?? json['iosRewardedAdId'] ?? json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString()
-          : (json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_REWARDED_AD_ID'] ?? json['ios_rewarded_ad_id'] ?? json['iosRewardedAdId'] ?? json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString()
+          : (dotenv.env['REWARDED_AD_ID'] ?? json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString(),
       appOpenAdId: isIOS 
-          ? (json['ios_app_open_ad_id'] ?? json['iosAppOpenAdId'] ?? json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString()
-          : (json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_APP_OPEN_AD_ID'] ?? json['ios_app_open_ad_id'] ?? json['iosAppOpenAdId'] ?? json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString()
+          : (dotenv.env['APP_OPEN_AD_ID'] ?? json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString(),
       interstitialAdId: isIOS 
-          ? (json['ios_interstitial_ad_id'] ?? json['iosInterstitialAdId'] ?? json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString()
-          : (json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_INTERSTITIAL_AD_ID'] ?? json['ios_interstitial_ad_id'] ?? json['iosInterstitialAdId'] ?? json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString()
+          : (dotenv.env['INTERSTITIAL_AD_ID'] ?? json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString(),
       rewardedInterstitialAdId: isIOS 
-          ? (json['ios_rewarded_interstitial_ad_id'] ?? json['iosRewardedInterstitialAdId'] ?? json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString()
-          : (json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_REWARDED_INTERSTITIAL_AD_ID'] ?? json['ios_rewarded_interstitial_ad_id'] ?? json['iosRewardedInterstitialAdId'] ?? json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString()
+          : (dotenv.env['REWARDED_INTERSTITIAL_AD_ID'] ?? json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString(),
       nativeAdvancedAdId: isIOS 
-          ? (json['ios_native_advanced_ad_id'] ?? json['iosNativeAdvancedAdId'] ?? json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString()
-          : (json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_NATIVE_ADVANCED_AD_ID'] ?? json['ios_native_advanced_ad_id'] ?? json['iosNativeAdvancedAdId'] ?? json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString()
+          : (dotenv.env['NATIVE_ADVANCED_AD_ID'] ?? json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString(),
       
       analyticsEnabled: _toBool(json['analytics_enabled'] ?? json['analyticsEnabled'], false),
       googleAnalyticsId: (json['google_analytics_id'] ?? json['googleAnalyticsId'] ?? '').toString(),
