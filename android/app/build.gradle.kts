@@ -2,7 +2,7 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-    // Removed com.google.gms.google-services plugin as we are moving to flutterfire_cli
+    id("com.google.gms.google-services")
 }
 
 android {
