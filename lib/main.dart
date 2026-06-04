@@ -28,7 +28,7 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
-    debugPrint("Firebase Init Failed: $e");
+    debugPrint("Firebase/Dotenv Init Failed: $e");
   }
 
   runApp(const ProviderScope(child: YoSinTVApp()));
@@ -96,9 +96,14 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
   Future<void> _initAdMob() async {
     try {
       await MobileAds.instance.initialize();
-      await MobileAds.instance.updateRequestConfiguration(
-        RequestConfiguration(testDeviceIds: ["9BF33D942FE0E9E6393482062A26F769"]),
-      );
+      
+      final testDeviceId = dotenv.env['ADMOB_TEST_DEVICE_ID'];
+      if (testDeviceId != null && testDeviceId.isNotEmpty) {
+        await MobileAds.instance.updateRequestConfiguration(
+          RequestConfiguration(testDeviceIds: [testDeviceId]),
+        );
+      }
+      
       ref.read(adSdkInitializedProvider.notifier).state = true;
     } catch (e) {
       debugPrint("AdMob Init Failed: $e");

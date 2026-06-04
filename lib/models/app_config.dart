@@ -60,6 +60,8 @@ class AppConfig {
   final String rewardedAdId;
   final String appOpenAdId;
   final String interstitialAdId;
+  final String rewardedInterstitialAdId;
+  final String nativeAdvancedAdId;
 
   final bool analyticsEnabled;
   final String googleAnalyticsId;
@@ -96,6 +98,8 @@ class AppConfig {
     required this.rewardedAdId,
     required this.appOpenAdId,
     required this.interstitialAdId,
+    required this.rewardedInterstitialAdId,
+    required this.nativeAdvancedAdId,
     required this.analyticsEnabled,
     required this.googleAnalyticsId,
     required this.maintenanceMode,
@@ -127,6 +131,8 @@ class AppConfig {
     rewardedAdId: '',
     appOpenAdId: '',
     interstitialAdId: '',
+    rewardedInterstitialAdId: '',
+    nativeAdvancedAdId: '',
     analyticsEnabled: false,
     googleAnalyticsId: '',
     maintenanceMode: false,
@@ -157,6 +163,8 @@ class AppConfig {
       debugPrint("Error parsing AppUpdateInfo: $e");
     }
 
+    final bool isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+
     return AppConfig(
       reviewMode: _toBool(json['review_mode'] ?? json['reviewMode'], false),
       streamingEnabled: _toBool(json['streaming_enabled'] ?? json['streamingEnabled'], true),
@@ -167,10 +175,24 @@ class AppConfig {
       appOpenEnabled: _toBool(json['app_open_enabled'] ?? json['appOpenEnabled'], true),
       interstitialEnabled: _toBool(json['interstitial_enabled'] ?? json['interstitialEnabled'], true),
       
-      bannerAdId: (json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString(),
-      rewardedAdId: (json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString(),
-      appOpenAdId: (json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString(),
-      interstitialAdId: (json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString(),
+      bannerAdId: isIOS 
+          ? (json['ios_banner_ad_id'] ?? json['iosBannerAdId'] ?? json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString()
+          : (json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString(),
+      rewardedAdId: isIOS 
+          ? (json['ios_rewarded_ad_id'] ?? json['iosRewardedAdId'] ?? json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString()
+          : (json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString(),
+      appOpenAdId: isIOS 
+          ? (json['ios_app_open_ad_id'] ?? json['iosAppOpenAdId'] ?? json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString()
+          : (json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString(),
+      interstitialAdId: isIOS 
+          ? (json['ios_interstitial_ad_id'] ?? json['iosInterstitialAdId'] ?? json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString()
+          : (json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString(),
+      rewardedInterstitialAdId: isIOS 
+          ? (json['ios_rewarded_interstitial_ad_id'] ?? json['iosRewardedInterstitialAdId'] ?? json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString()
+          : (json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString(),
+      nativeAdvancedAdId: isIOS 
+          ? (json['ios_native_advanced_ad_id'] ?? json['iosNativeAdvancedAdId'] ?? json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString()
+          : (json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString(),
       
       analyticsEnabled: _toBool(json['analytics_enabled'] ?? json['analyticsEnabled'], false),
       googleAnalyticsId: (json['google_analytics_id'] ?? json['googleAnalyticsId'] ?? '').toString(),
@@ -206,9 +228,17 @@ class AppConfig {
     'app_open_enabled': appOpenEnabled,
     'interstitial_enabled': interstitialEnabled,
     'banner_ad_id': bannerAdId,
+    'ios_banner_ad_id': bannerAdId,
     'rewarded_ad_id': rewardedAdId,
+    'ios_rewarded_ad_id': rewardedAdId,
     'app_open_ad_id': appOpenAdId,
+    'ios_app_open_ad_id': appOpenAdId,
     'interstitial_ad_id': interstitialAdId,
+    'ios_interstitial_ad_id': interstitialAdId,
+    'rewarded_interstitial_ad_id': rewardedInterstitialAdId,
+    'ios_rewarded_interstitial_ad_id': rewardedInterstitialAdId,
+    'native_advanced_ad_id': nativeAdvancedAdId,
+    'ios_native_advanced_ad_id': nativeAdvancedAdId,
     'analytics_enabled': analyticsEnabled,
     'google_analytics_id': googleAnalyticsId,
     'maintenance_mode': maintenanceMode,
