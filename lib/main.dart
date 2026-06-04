@@ -9,6 +9,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'firebase_options.dart';
 import 'router.dart';
 import 'theme/app_colors.dart';
 import 'services/ad_service.dart';
@@ -21,9 +23,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    await Firebase.initializeApp();
+    await dotenv.load(fileName: ".env");
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
-    debugPrint("Firebase Init Failed: $e");
+    debugPrint("Firebase/Dotenv Init Failed: $e");
   }
 
   runApp(const ProviderScope(child: YoSinTVApp()));
@@ -91,9 +96,14 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
   Future<void> _initAdMob() async {
     try {
       await MobileAds.instance.initialize();
-      await MobileAds.instance.updateRequestConfiguration(
-        RequestConfiguration(testDeviceIds: ["9BF33D942FE0E9E6393482062A26F769"]),
-      );
+      
+      final testDeviceId = dotenv.env['ADMOB_TEST_DEVICE_ID'];
+      if (testDeviceId != null && testDeviceId.isNotEmpty) {
+        await MobileAds.instance.updateRequestConfiguration(
+          RequestConfiguration(testDeviceIds: [testDeviceId]),
+        );
+      }
+      
       ref.read(adSdkInitializedProvider.notifier).state = true;
     } catch (e) {
       debugPrint("AdMob Init Failed: $e");

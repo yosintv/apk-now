@@ -1,8 +1,9 @@
 // lib/config/defaults.dart
 // Local fallback configuration used when both remote endpoints are unreachable.
 // This is the last-resort safety net, always kept in sync with the production JSON shape.
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-const Map<String, dynamic> kDefaultConfig = {
+Map<String, dynamic> get kDefaultConfig => {
   // --- Ad Control Flags ---
   'reviewMode': false,
   'streamingEnabled': true,
@@ -12,11 +13,19 @@ const Map<String, dynamic> kDefaultConfig = {
   'appOpenEnabled': true,
   'interstitialEnabled': true,
 
-  // --- AdMob Ad Unit IDs (Production IDs) ---
-  'bannerAdId': 'ca-app-pub-5525538810839147/3825132304',
-  'rewardedAdId': 'ca-app-pub-5525538810839147/6942250234',
-  'appOpenAdId': 'ca-app-pub-5525538810839147/1223019695',
-  'interstitialAdId': 'ca-app-pub-5525538810839147/4446428920',
+  // --- AdMob Ad Unit IDs (Android) ---
+  'bannerAdId': dotenv.env['ADMOB_ANDROID_BANNER_ID'] ?? '',
+  'rewardedAdId': dotenv.env['ADMOB_ANDROID_REWARDED_ID'] ?? '',
+  'appOpenAdId': dotenv.env['ADMOB_ANDROID_APP_OPEN_ID'] ?? '',
+  'interstitialAdId': dotenv.env['ADMOB_ANDROID_INTERSTITIAL_ID'] ?? '',
+
+  // --- AdMob Ad Unit IDs (iOS) ---
+  'iosBannerAdId': dotenv.env['ADMOB_IOS_BANNER_ID'] ?? '',
+  'iosInterstitialAdId': dotenv.env['ADMOB_IOS_INTERSTITIAL_ID'] ?? '',
+  'iosRewardedAdId': dotenv.env['ADMOB_IOS_REWARDED_ID'] ?? '',
+  'iosAppOpenAdId': dotenv.env['ADMOB_IOS_APP_OPEN_ID'] ?? '',
+  'iosRewardedInterstitialAdId': dotenv.env['ADMOB_IOS_REWARDED_INTERSTITIAL_ID'] ?? '',
+  'iosNativeAdvancedAdId': dotenv.env['ADMOB_IOS_NATIVE_ADVANCED_ID'] ?? '',
 
   // --- Maintenance & Messaging ---
   'maintenanceMode': false,
