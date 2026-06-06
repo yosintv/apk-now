@@ -42,7 +42,6 @@ class MainShell extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      // Task 4: Fix Layout Overflow - prevent keyboard-related overflows
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.surface,
@@ -68,14 +67,11 @@ class MainShell extends ConsumerWidget {
       ),
       drawer: _buildDrawer(context, config),
       body: navigationShell,
-      // Task 4: Finalize UI Layout - One Sticky Ad & Prevents Overflow
       bottomNavigationBar: SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Essential to prevent 6px overflow
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Exactly one BannerAdWidget here as requested
             const BannerAdWidget(),
-            
             Container(
               decoration: BoxDecoration(
                 boxShadow: [
@@ -133,7 +129,7 @@ class MainShell extends ConsumerWidget {
         children: [
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 24.0),
+              padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 24.0),
               child: Column(
                 children: [
                   Container(
@@ -150,7 +146,7 @@ class MainShell extends ConsumerWidget {
                     ),
                     child: Image.asset(
                       'assets/logo.png',
-                      height: 80,
+                      height: 50,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -158,7 +154,7 @@ class MainShell extends ConsumerWidget {
                     'YoSinTV',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: 20,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -167,7 +163,7 @@ class MainShell extends ConsumerWidget {
                     '24x7 - Football | Cricket',
                     style: TextStyle(
                       color: Colors.white70,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 0.5,
                     ),
@@ -179,7 +175,7 @@ class MainShell extends ConsumerWidget {
           const Divider(color: Colors.white10, height: 1, indent: 20, endIndent: 20),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 20),
+              padding: const EdgeInsets.symmetric(vertical: 10),
               children: [
                 _buildDrawerTile(
                   context,
@@ -221,6 +217,26 @@ class MainShell extends ConsumerWidget {
                     _onTabSelected(3);
                   },
                 ),
+                _buildDrawerTile(
+                  context,
+                  icon: Icons.info_outline,
+                  title: 'About Us',
+                  isSelected: false,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _launchURL(config.aboutUsLink);
+                  },
+                ),
+                _buildDrawerTile(
+                  context,
+                  icon: Icons.privacy_tip,
+                  title: 'Privacy Policy',
+                  isSelected: false,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _launchURL(config.privacyPolicyLink);
+                  },
+                ),
               ],
             ),
           ),
@@ -234,14 +250,14 @@ class MainShell extends ConsumerWidget {
                   icon: Icons.send_rounded,
                   onTap: () => _launchURL(config.telegramLink),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _buildSocialButton(
                   text: 'WhatsApp Support',
                   color: AppColors.whatsapp,
                   icon: Icons.chat_rounded,
                   onTap: () => _launchURL(config.whatsappLink),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
                 const Text(
                   'Version 1.1',
                   style: TextStyle(

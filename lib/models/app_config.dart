@@ -74,6 +74,8 @@ class AppConfig {
 
   final String whatsappLink;
   final String telegramLink;
+  final String aboutUsLink;
+  final String privacyPolicyLink;
 
   final bool popupEnabled;
   final String popupTitle;
@@ -109,6 +111,8 @@ class AppConfig {
     required this.appMessageType,
     required this.whatsappLink,
     required this.telegramLink,
+    required this.aboutUsLink,
+    required this.privacyPolicyLink,
     required this.popupEnabled,
     required this.popupTitle,
     required this.popupText,
@@ -119,7 +123,7 @@ class AppConfig {
     this.appUpdate,
   });
 
-  factory AppConfig.empty() => const AppConfig(
+  factory AppConfig.empty() => AppConfig(
     reviewMode: false,
     streamingEnabled: true,
     streamingUrl: '',
@@ -142,6 +146,8 @@ class AppConfig {
     appMessageType: 'info',
     whatsappLink: '',
     telegramLink: '',
+    aboutUsLink: dotenv.env['ABOUT_US_URL'] ?? 'https://yosintv.github.io/about-us.html',
+    privacyPolicyLink: dotenv.env['PRIVACY_POLICY_URL'] ?? 'https://yosintv.github.io/privacy-policy.html',
     popupEnabled: false,
     popupTitle: '',
     popupText: '',
@@ -205,7 +211,9 @@ class AppConfig {
       
       whatsappLink: (json['whatsapp_link'] ?? json['whatsappLink'] ?? '').toString(),
       telegramLink: (json['telegram_link'] ?? json['telegramLink'] ?? '').toString(),
-      
+      aboutUsLink: (dotenv.env['ABOUT_US_URL'] ?? json['about_us_link'] ?? json['aboutUsLink'] ?? 'https://yosintv.github.io/about-us.html').toString(),
+      privacyPolicyLink: (dotenv.env['PRIVACY_POLICY_URL'] ?? json['privacy_policy_link'] ?? json['privacyPolicyLink'] ?? 'https://yosintv.github.io/privacy-policy.html').toString(),
+
       popupEnabled: _toBool(json['popup_enabled'] ?? json['popupEnabled'], false),
       popupTitle: (json['popup_title'] ?? json['popupTitle'] ?? '').toString(),
       popupText: (json['popup_text'] ?? json['popupText'] ?? '').toString(),
@@ -248,6 +256,8 @@ class AppConfig {
     'app_message_type': appMessageType,
     'whatsapp_link': whatsappLink,
     'telegram_link': telegramLink,
+    'about_us_link': aboutUsLink,
+    'privacy_policy_link': privacyPolicyLink,
     'popup_enabled': popupEnabled,
     'popup_title': popupTitle,
     'popup_text': popupText,
@@ -262,7 +272,6 @@ class AppConfig {
     final Map<String, dynamic> current = toJson();
     remote.forEach((key, value) {
       if (value != null) {
-        // Handle nested update info specifically
         if ((key == 'app_update' || key == 'appUpdate') && value is Map) {
           final existing = current['app_update'] ?? {};
           current['app_update'] = {...(existing is Map ? existing : {}), ...value};
