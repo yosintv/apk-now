@@ -50,16 +50,57 @@ class LineupsTab extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (teamALineup.isNotEmpty || teamBLineup.isNotEmpty) ...[
-          _buildHeaderBar(),
-          const SizedBox(height: 16),
-          _buildParallelColumns(),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFF1F3F5)),
+            ),
+            child: Column(
+              children: [
+                // Header row
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (teamAFormation.isNotEmpty)
+                        _buildFormationPill(teamAFormation)
+                      else
+                        const SizedBox(),
+                      const Text(
+                        'Line-ups',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primary),
+                      ),
+                      if (teamBFormation.isNotEmpty)
+                        _buildFormationPill(teamBFormation)
+                      else
+                        const SizedBox(),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: Color(0xFFF1F3F5)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: _buildParallelColumns(),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
         ],
-        
-        if ((tAManager != null && tAManager.isNotEmpty) || 
+
+        if ((tAManager != null && tAManager.isNotEmpty) ||
             (tBManager != null && tBManager.isNotEmpty)) ...[
           _buildManagersRow(tAManager, tBManager),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
         ],
 
         if (teamAUnavailable.isNotEmpty || teamBUnavailable.isNotEmpty)
@@ -92,20 +133,6 @@ class LineupsTab extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderBar({String title = 'Line-ups'}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        if (teamAFormation.isNotEmpty) _buildFormationPill(teamAFormation),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
-        ),
-        if (teamBFormation.isNotEmpty) _buildFormationPill(teamBFormation),
-      ],
-    );
-  }
-
   Widget _buildFormationPill(String formation) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -120,31 +147,52 @@ class LineupsTab extends StatelessWidget {
       children: List.generate(maxRows, (index) {
         final Player? playerA = index < teamALineup.length ? teamALineup[index] : null;
         final Player? playerB = index < teamBLineup.length ? teamBLineup[index] : null;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: playerA != null
-                    ? Row(children: [
-                        _buildSquadNumber(playerA.number), 
-                        const SizedBox(width: 10), 
-                        Expanded(child: Text(playerA.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis))
-                      ])
-                    : const SizedBox.shrink(),
+        final bool isLast = index == maxRows - 1;
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: playerA != null
+                        ? Row(children: [
+                            _buildSquadNumber(playerA.number),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                playerA.name,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ])
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(width: 1, height: 18, color: const Color(0xFFE9ECEF)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: playerB != null
+                        ? Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                            Expanded(
+                              child: Text(
+                                playerB.name,
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            _buildSquadNumber(playerB.number),
+                          ])
+                        : const SizedBox.shrink(),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: playerB != null
-                    ? Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                        Expanded(child: Text(playerB.name, textAlign: TextAlign.right, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis)), 
-                        const SizedBox(width: 10), 
-                        _buildSquadNumber(playerB.number)
-                      ])
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
+            ),
+            if (!isLast) const Divider(height: 1, color: Color(0xFFF8F9FA)),
+          ],
         );
       }),
     );
@@ -154,8 +202,8 @@ class LineupsTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFF1F3F5)),
       ),
       child: Row(
@@ -170,6 +218,7 @@ class LineupsTab extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 16),
           Container(width: 1, height: 30, color: const Color(0xFFE9ECEF)),
           const SizedBox(width: 16),
           Expanded(
@@ -189,11 +238,15 @@ class LineupsTab extends StatelessWidget {
 
   Widget _buildSquadNumber(String number) {
     return Container(
-      width: 24,
-      height: 24,
-      decoration: const BoxDecoration(color: Color(0xFFF1F3F5), shape: BoxShape.circle),
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.08),
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.primary.withOpacity(0.18), width: 1),
+      ),
       alignment: Alignment.center,
-      child: Text(number, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+      child: Text(number, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.primary)),
     );
   }
 
