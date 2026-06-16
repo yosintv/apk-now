@@ -10,7 +10,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'firebase_options.dart';
 import 'router.dart';
 import 'theme/app_colors.dart';
 import 'services/ad_service.dart';
@@ -24,9 +23,8 @@ void main() async {
   
   try {
     await dotenv.load(fileName: ".env");
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    // Initializing Firebase without explicit options to use google-services.json / GoogleService-Info.plist
+    await Firebase.initializeApp();
   } catch (e) {
     debugPrint("Firebase/Dotenv Init Failed: $e");
   }

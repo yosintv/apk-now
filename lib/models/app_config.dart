@@ -1,5 +1,6 @@
 // lib/models/app_config.dart
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 bool _toBool(dynamic value, bool defaultValue) {
   if (value == null) return defaultValue;
@@ -73,6 +74,8 @@ class AppConfig {
 
   final String whatsappLink;
   final String telegramLink;
+  final String aboutUsLink;
+  final String privacyPolicyLink;
 
   final bool popupEnabled;
   final String popupTitle;
@@ -108,6 +111,8 @@ class AppConfig {
     required this.appMessageType,
     required this.whatsappLink,
     required this.telegramLink,
+    required this.aboutUsLink,
+    required this.privacyPolicyLink,
     required this.popupEnabled,
     required this.popupTitle,
     required this.popupText,
@@ -118,7 +123,7 @@ class AppConfig {
     this.appUpdate,
   });
 
-  factory AppConfig.empty() => const AppConfig(
+  factory AppConfig.empty() => AppConfig(
     reviewMode: false,
     streamingEnabled: true,
     streamingUrl: '',
@@ -141,6 +146,8 @@ class AppConfig {
     appMessageType: 'info',
     whatsappLink: '',
     telegramLink: '',
+    aboutUsLink: dotenv.env['ABOUT_US_URL'] ?? 'https://yosintv.github.io/about-us.html',
+    privacyPolicyLink: dotenv.env['PRIVACY_POLICY_URL'] ?? 'https://yosintv.github.io/privacy-policy.html',
     popupEnabled: false,
     popupTitle: '',
     popupText: '',
@@ -176,23 +183,23 @@ class AppConfig {
       interstitialEnabled: _toBool(json['interstitial_enabled'] ?? json['interstitialEnabled'], true),
       
       bannerAdId: isIOS 
-          ? (json['ios_banner_ad_id'] ?? json['iosBannerAdId'] ?? json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString()
-          : (json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_BANNER_AD_ID'] ?? json['ios_banner_ad_id'] ?? json['iosBannerAdId'] ?? json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString()
+          : (dotenv.env['BANNER_AD_ID'] ?? json['banner_ad_id'] ?? json['bannerAdId'] ?? '').toString(),
       rewardedAdId: isIOS 
-          ? (json['ios_rewarded_ad_id'] ?? json['iosRewardedAdId'] ?? json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString()
-          : (json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_REWARDED_AD_ID'] ?? json['ios_rewarded_ad_id'] ?? json['iosRewardedAdId'] ?? json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString()
+          : (dotenv.env['REWARDED_AD_ID'] ?? json['rewarded_ad_id'] ?? json['rewardedAdId'] ?? '').toString(),
       appOpenAdId: isIOS 
-          ? (json['ios_app_open_ad_id'] ?? json['iosAppOpenAdId'] ?? json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString()
-          : (json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_APP_OPEN_AD_ID'] ?? json['ios_app_open_ad_id'] ?? json['iosAppOpenAdId'] ?? json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString()
+          : (dotenv.env['APP_OPEN_AD_ID'] ?? json['app_open_ad_id'] ?? json['appOpenAdId'] ?? '').toString(),
       interstitialAdId: isIOS 
-          ? (json['ios_interstitial_ad_id'] ?? json['iosInterstitialAdId'] ?? json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString()
-          : (json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_INTERSTITIAL_AD_ID'] ?? json['ios_interstitial_ad_id'] ?? json['iosInterstitialAdId'] ?? json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString()
+          : (dotenv.env['INTERSTITIAL_AD_ID'] ?? json['interstitial_ad_id'] ?? json['interstitialAdId'] ?? '').toString(),
       rewardedInterstitialAdId: isIOS 
-          ? (json['ios_rewarded_interstitial_ad_id'] ?? json['iosRewardedInterstitialAdId'] ?? json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString()
-          : (json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_REWARDED_INTERSTITIAL_AD_ID'] ?? json['ios_rewarded_interstitial_ad_id'] ?? json['iosRewardedInterstitialAdId'] ?? json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString()
+          : (dotenv.env['REWARDED_INTERSTITIAL_AD_ID'] ?? json['rewarded_interstitial_ad_id'] ?? json['rewardedInterstitialAdId'] ?? '').toString(),
       nativeAdvancedAdId: isIOS 
-          ? (json['ios_native_advanced_ad_id'] ?? json['iosNativeAdvancedAdId'] ?? json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString()
-          : (json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString(),
+          ? (dotenv.env['IOS_NATIVE_ADVANCED_AD_ID'] ?? json['ios_native_advanced_ad_id'] ?? json['iosNativeAdvancedAdId'] ?? json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString()
+          : (dotenv.env['NATIVE_ADVANCED_AD_ID'] ?? json['native_advanced_ad_id'] ?? json['nativeAdvancedAdId'] ?? '').toString(),
       
       analyticsEnabled: _toBool(json['analytics_enabled'] ?? json['analyticsEnabled'], false),
       googleAnalyticsId: (json['google_analytics_id'] ?? json['googleAnalyticsId'] ?? '').toString(),
@@ -204,7 +211,9 @@ class AppConfig {
       
       whatsappLink: (json['whatsapp_link'] ?? json['whatsappLink'] ?? '').toString(),
       telegramLink: (json['telegram_link'] ?? json['telegramLink'] ?? '').toString(),
-      
+      aboutUsLink: (dotenv.env['ABOUT_US_URL'] ?? json['about_us_link'] ?? json['aboutUsLink'] ?? 'https://yosintv.github.io/about-us.html').toString(),
+      privacyPolicyLink: (dotenv.env['PRIVACY_POLICY_URL'] ?? json['privacy_policy_link'] ?? json['privacyPolicyLink'] ?? 'https://yosintv.github.io/privacy-policy.html').toString(),
+
       popupEnabled: _toBool(json['popup_enabled'] ?? json['popupEnabled'], false),
       popupTitle: (json['popup_title'] ?? json['popupTitle'] ?? '').toString(),
       popupText: (json['popup_text'] ?? json['popupText'] ?? '').toString(),
@@ -247,6 +256,8 @@ class AppConfig {
     'app_message_type': appMessageType,
     'whatsapp_link': whatsappLink,
     'telegram_link': telegramLink,
+    'about_us_link': aboutUsLink,
+    'privacy_policy_link': privacyPolicyLink,
     'popup_enabled': popupEnabled,
     'popup_title': popupTitle,
     'popup_text': popupText,
@@ -261,7 +272,6 @@ class AppConfig {
     final Map<String, dynamic> current = toJson();
     remote.forEach((key, value) {
       if (value != null) {
-        // Handle nested update info specifically
         if ((key == 'app_update' || key == 'appUpdate') && value is Map) {
           final existing = current['app_update'] ?? {};
           current['app_update'] = {...(existing is Map ? existing : {}), ...value};
