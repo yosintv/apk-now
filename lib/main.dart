@@ -40,6 +40,7 @@ class YoSinTVApp extends ConsumerStatefulWidget {
 
 class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObserver {
   bool _isLoading = true;
+  bool _splashVisible = true; // stays true until fade-out finishes
   bool _popupsHandled = false;
   bool _isNoInternetDialogShowing = false;
 
@@ -93,19 +94,66 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
 
   Future<void> _initAdMob() async {
     try {
+      // Gather EU/UK consent via Google UMP before initialising AdMob.
+      // Non-EEA/UK users pass through instantly; EEA/UK users see the
+      // consent form on first launch and on every consent-reset.
+      await _gatherConsent();
+
       await MobileAds.instance.initialize();
-      
+
       final testDeviceId = dotenv.env['ADMOB_TEST_DEVICE_ID'];
       if (testDeviceId != null && testDeviceId.isNotEmpty) {
         await MobileAds.instance.updateRequestConfiguration(
           RequestConfiguration(testDeviceIds: [testDeviceId]),
         );
       }
-      
+
       ref.read(adSdkInitializedProvider.notifier).state = true;
     } catch (e) {
       debugPrint("AdMob Init Failed: $e");
     }
+  }
+
+  /// Requests consent info update via Google UMP SDK and, if required,
+  /// loads and shows the GDPR/IDFA consent form to the user.
+  /// Always completes — errors are non-fatal (ads fall back to
+  /// non-personalised serving).
+  Future<void> _gatherConsent() async {
+    final completer = Completer<void>();
+
+    ConsentInformation.instance.requestConsentInfoUpdate(
+      ConsentRequestParameters(),
+      () async {
+        // Success: check if form needs to be shown
+        try {
+          final available =
+              await ConsentInformation.instance.isConsentFormAvailable();
+          if (available) {
+            ConsentForm.loadAndShowConsentFormIfRequired((_) {
+              // Form dismissed (error arg is null on success)
+              if (!completer.isCompleted) completer.complete();
+            });
+          } else {
+            completer.complete();
+          }
+        } catch (e) {
+          debugPrint('Consent form check error: $e');
+          if (!completer.isCompleted) completer.complete();
+        }
+      },
+      (FormError error) {
+        // Network/API error — continue without consent; AdMob serves
+        // non-personalised ads for EEA users in this case.
+        debugPrint('Consent info update error: ${error.message}');
+        if (!completer.isCompleted) completer.complete();
+      },
+    );
+
+    // Safety timeout so a network failure never blocks app startup.
+    await completer.future.timeout(
+      const Duration(seconds: 12),
+      onTimeout: () {},
+    );
   }
 
   void _showNoInternetDialog() {
@@ -219,7 +267,7 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
       context: context,
       barrierDismissible: !updateInfo.forceUpdate,
       barrierLabel: '',
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, anim1, anim2) {
         return PopScope(
@@ -269,19 +317,6 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
       });
     });
 
-    if (_isLoading) {
-      return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        navigatorKey: rootNavigatorKey,
-        themeMode: ThemeMode.light,
-        theme: ThemeData(
-          useMaterial3: true,
-          brightness: Brightness.light,
-        ),
-        home: const LoadingScreen(),
-      );
-    }
-
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
       title: 'YoSinTV',
@@ -292,14 +327,89 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
         brightness: Brightness.light,
         scaffoldBackgroundColor: AppColors.background,
         primaryColor: AppColors.primary,
-        colorScheme: const ColorScheme.light(
-          primary: AppColors.primary, 
-          secondary: AppColors.accent, 
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.accent,
           surface: AppColors.surface,
+          brightness: Brightness.light,
         ),
         textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: Colors.white,
+          indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              );
+            }
+            return const TextStyle(
+              color: AppColors.inactiveTab,
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+            );
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(color: AppColors.primary, size: 22);
+            }
+            return const IconThemeData(color: AppColors.inactiveTab, size: 22);
+          }),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.textPrimary,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: Colors.white,
+          selectedColor: AppColors.primary,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        dividerColor: AppColors.divider,
+        dividerTheme: const DividerThemeData(
+          color: AppColors.divider,
+          thickness: 1,
+          space: 1,
+        ),
       ),
       routerConfig: router,
+      // Splash overlay on top — avoids MaterialApp type-switch that caused
+      // the brief null-context red screen during loading → main transition.
+      builder: (context, child) {
+        return Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            if (_splashVisible)
+              AnimatedOpacity(
+                opacity: _isLoading ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeOut,
+                onEnd: () {
+                  if (!_isLoading && mounted) {
+                    setState(() => _splashVisible = false);
+                  }
+                },
+                child: const LoadingScreen(),
+              ),
+          ],
+        );
+      },
     );
   }
 }

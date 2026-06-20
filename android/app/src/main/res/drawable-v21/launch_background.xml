@@ -1,14 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Background color matching our professional light theme (F8F9FA) -->
+    <!-- Solid dark navy matching the Flutter animated splash background.
+         No logo here — Flutter LoadingScreen handles the full branded experience. -->
     <item>
-        <color android:color="#FFF8F9FA"/>
-    </item>
-
-    <!-- Center the logo during the native launch phase -->
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/ic_launcher" />
+        <color android:color="#FF050E2E"/>
     </item>
 </layer-list>

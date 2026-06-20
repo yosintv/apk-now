@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/match.dart';
 import '../../providers/matches_provider.dart';
+import '../../providers/config_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/match_card.dart';
 import '../../widgets/news_card.dart';
@@ -18,6 +19,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _selectedFilter = 'All';
   String _searchQuery = '';
+  bool _messageDismissed = false;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -26,106 +28,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  Map<String, dynamic> _getTournamentMetadata(String? leagueName, String sport) {
-    if (leagueName == null) {
-      return {'label': sport == 'cricket' ? 'Cricket' : 'Football', 'icon': sport == 'cricket' ? Icons.sports_cricket : Icons.sports_soccer};
-    }
-    final name = leagueName.toLowerCase();
-    if (name.contains('ipl') || name.contains('premier league')) {
-      return {'label': 'IPL', 'icon': Icons.sports_cricket};
-    } else if (name.contains('t20') || name.contains('world cup')) {
-      return {'label': 'World Cup', 'icon': Icons.sports_cricket};
-    } else if (name.contains('la liga') || name.contains('laliga')) {
-      return {'label': 'La Liga', 'icon': Icons.sports_soccer};
-    } else if (name.contains('champions league') || name.contains('ucl')) {
-      return {'label': 'UCL', 'icon': Icons.sports_soccer};
-    }
-    return {
-      'label': sport == 'cricket' ? 'Cricket' : 'Football',
-      'icon': sport == 'cricket' ? Icons.sports_cricket : Icons.sports_soccer
-    };
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  String _leagueLabel(String name, String sport) {
+    final n = name.toLowerCase();
+    if (n.contains('indian premier league') || n == 'ipl') return 'IPL';
+    if (n.contains('world cup') && sport == 'cricket') return 'World Cup';
+    if (n.contains('premier league') && sport == 'football') return 'PL';
+    if (n.contains('champions league') || n.contains('ucl')) return 'UCL';
+    if (n.contains('la liga') || n.contains('laliga')) return 'La Liga';
+    return sport == 'cricket' ? 'Cricket' : 'Football';
   }
 
-  List<Match> _getFilteredMatches(List<Match> matches) {
-    return matches.where((m) {
-      final matchesSearch = m.teamA.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          m.teamB.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (m.leagueName.toLowerCase().contains(_searchQuery.toLowerCase()));
-      if (!matchesSearch) return false;
+  List<Match> _applyFilter(List<Match> all) {
+    return all.where((m) {
+      final q = _searchQuery.toLowerCase();
+      if (q.isNotEmpty) {
+        if (!m.teamA.toLowerCase().contains(q) &&
+            !m.teamB.toLowerCase().contains(q) &&
+            !m.leagueName.toLowerCase().contains(q)) {
+          return false;
+        }
+      }
       if (_selectedFilter == 'All') return true;
       if (_selectedFilter == 'Cricket') return m.sport == 'cricket';
       if (_selectedFilter == 'Football') return m.sport == 'football';
-      final meta = _getTournamentMetadata(m.leagueName, m.sport);
-      return meta['label'] == _selectedFilter;
+      return _leagueLabel(m.leagueName, m.sport) == _selectedFilter;
     }).toList();
   }
 
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning ☀️';
-    if (hour < 17) return 'Good Afternoon 🌤️';
-    return 'Good Evening 🌙';
-  }
-
-  Widget _buildEmptyState() {
-    return SliverToBoxAdapter(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 60),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.sports_soccer_outlined, size: 80, color: AppColors.textSecondary.withOpacity(0.2)),
-              const SizedBox(height: 16),
-              const Text(
-                'No matches found',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final footballAsync = ref.watch(footballMatchesProvider);
     final cricketAsync = ref.watch(cricketMatchesProvider);
     final articlesAsync = ref.watch(articlesProvider);
+    final config = ref.watch(configProvider);
 
     final football = footballAsync.value ?? [];
     final cricket = cricketAsync.value ?? [];
-    final List<Match> allMatches = [...football, ...cricket];
+    final allMatches = [...football, ...cricket];
 
+    // Sort: LIVE → UPCOMING (soonest first) → FINISHED
     allMatches.sort((a, b) {
-      final aStatus = a.status;
-      final bStatus = b.status;
-      if (aStatus == bStatus) {
-        if (aStatus == MatchStatus.upcoming) {
-          final ta = a.countdown;
-          final tb = b.countdown;
-          if (ta == null && tb == null) return 0;
-          if (ta == null) return 1;
-          if (tb == null) return -1;
-          return ta.compareTo(tb);
-        }
-        return 0;
+      if (a.status != b.status) {
+        return a.status.index.compareTo(b.status.index);
       }
-      return aStatus.index.compareTo(bStatus.index);
+      if (a.status == MatchStatus.upcoming) {
+        final ta = a.countdown, tb = b.countdown;
+        if (ta == null && tb == null) return 0;
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return ta.compareTo(tb);
+      }
+      return 0;
     });
 
-    final filteredMatches = _getFilteredMatches(allMatches);
-    final liveCount = filteredMatches.where((m) => m.status == MatchStatus.live).length;
+    final filtered = _applyFilter(allMatches);
+    final liveMatches =
+        filtered.where((m) => m.status == MatchStatus.live).toList();
+    final nonLiveMatches =
+        filtered.where((m) => m.status != MatchStatus.live).toList();
+    final upcomingCount =
+        filtered.where((m) => m.status == MatchStatus.upcoming).length;
 
-    final List<String> filterLabels = ['All', 'Cricket', 'Football'];
-    final Set<String> seenLeagues = {};
-    for (var m in allMatches) {
-      final meta = _getTournamentMetadata(m.leagueName, m.sport);
-      final label = meta['label'] as String?;
-      if (label != null && !seenLeagues.contains(label) && label != 'Cricket' && label != 'Football') {
-        filterLabels.add(label);
-        seenLeagues.add(label);
+    // Build filter label list
+    final filters = ['All', 'Cricket', 'Football'];
+    final seenLabels = <String>{};
+    for (final m in allMatches) {
+      final lbl = _leagueLabel(m.leagueName, m.sport);
+      if (lbl != 'Cricket' && lbl != 'Football' && seenLabels.add(lbl)) {
+        filters.add(lbl);
       }
     }
 
@@ -144,150 +118,138 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              // ── Greeting + Search ──────────────────────────────────────
+              // ── Stats bar ──────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _getGreeting(),
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const Text(
-                                'Explore Matches',
-                                style: TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
-                              ],
-                            ),
-                            child: Image.asset('assets/logo.png', height: 40),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      _buildSearchField(),
-                    ],
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: _buildStatsBar(
+                      liveMatches.length, upcomingCount, filtered.length),
+                ),
+              ),
+
+              // ── Search ─────────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: _buildSearch(),
                 ),
               ),
 
               // ── Filter chips ───────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: _buildFilterChips(filterLabels, allMatches),
+                  padding: const EdgeInsets.only(top: 14),
+                  child: _buildFilters(filters),
                 ),
               ),
 
-              // ── "Live & Upcoming" section header ───────────────────────
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverToBoxAdapter(
-                  child: Row(
-                    children: [
-                      const Text(
-                        'Live & Upcoming',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                      ),
-                      const SizedBox(width: 8),
-                      if (liveCount > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.circle, color: Colors.white, size: 6),
-                              const SizedBox(width: 4),
-                              Text(
-                                '$liveCount LIVE',
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
-                              ),
-                            ],
-                          ),
-                        ),
-                      const Spacer(),
-                      if (filteredMatches.isNotEmpty)
-                        Text(
-                          '${filteredMatches.length} Matches',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w700),
-                        ),
-                    ],
+              // ── App message banner ─────────────────────────────────────
+              if (config.appMessageEnabled &&
+                  config.appMessage.isNotEmpty &&
+                  !_messageDismissed)
+                SliverToBoxAdapter(
+                  child: _buildAppMessage(
+                      config.appMessage, config.appMessageType),
+                ),
+
+              // ── LIVE NOW section ───────────────────────────────────────
+              if (liveMatches.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+                    child: _sectionHeader(
+                      icon: Icons.circle,
+                      label: 'Live Now',
+                      iconColor: AppColors.live,
+                      count: liveMatches.length,
+                    ),
+                  ),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => _matchTile(liveMatches[i]),
+                    childCount: liveMatches.length,
+                  ),
+                ),
+              ],
+
+              // ── UPCOMING section ───────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                      16, liveMatches.isEmpty ? 18 : 22, 16, 10),
+                  child: _sectionHeader(
+                    icon: Icons.schedule_rounded,
+                    label: liveMatches.isEmpty ? 'Live & Upcoming' : 'Upcoming',
+                    iconColor: AppColors.upcoming,
+                    count: nonLiveMatches.length,
                   ),
                 ),
               ),
 
-              // ── Match list ─────────────────────────────────────────────
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
-                sliver: filteredMatches.isEmpty
-                    ? _buildEmptyState()
-                    : SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            if (index > 0 && (index + 1) % 4 == 0) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: AdBannerWidget(),
-                              );
-                            }
-                            final dataIndex = index - (index ~/ 4);
-                            if (dataIndex < 0 || dataIndex >= filteredMatches.length) return null;
-                            return _buildMatchCard(filteredMatches[dataIndex]);
-                          },
-                          childCount: filteredMatches.length + (filteredMatches.length ~/ 3),
-                        ),
-                      ),
-              ),
+              if (filtered.isEmpty)
+                SliverToBoxAdapter(
+                  child: _emptyState(
+                    icon: Icons.sports_soccer_outlined,
+                    label: 'No matches found',
+                  ),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, index) {
+                      if (index > 0 && index % 4 == 0) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 6),
+                          child: AdBannerWidget(),
+                        );
+                      }
+                      final di = index - (index ~/ 4);
+                      if (di < 0 || di >= nonLiveMatches.length) return null;
+                      return _matchTile(nonLiveMatches[di]);
+                    },
+                    childCount:
+                        nonLiveMatches.length + (nonLiveMatches.length ~/ 4),
+                  ),
+                ),
 
-              // ── Latest News header ─────────────────────────────────────
+              // ── Latest News ────────────────────────────────────────────
               if (articles.isNotEmpty) ...[
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
-                    child: const Text(
-                      'Latest News',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                    child: _sectionHeader(
+                      icon: Icons.newspaper_rounded,
+                      label: 'Latest News',
+                      iconColor: AppColors.news,
                     ),
                   ),
                 ),
 
-                // ── News vertical list ─────────────────────────────────
+                // Featured article
+                SliverToBoxAdapter(
+                  child: InkWell(
+                    onTap: () =>
+                        context.push('/article-detail', extra: articles.first),
+                    child: NewsCard(
+                      title: articles.first.title,
+                      category: articles.first.category,
+                      timestamp: articles.first.relativeTime,
+                      logoUrl: articles.first.imageUrl ?? '',
+                      featured: true,
+                    ),
+                  ),
+                ),
+
+                // Compact list (next 4)
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      if (index >= articles.take(5).length) return null;
-                      final article = articles[index];
+                    (ctx, i) {
+                      if (i >= articles.length - 1) return null;
+                      final article = articles[i + 1];
                       return InkWell(
-                        onTap: () => context.push('/article-detail', extra: article),
+                        onTap: () =>
+                            context.push('/article-detail', extra: article),
                         child: NewsCard(
                           title: article.title,
                           category: article.category,
@@ -296,7 +258,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       );
                     },
-                    childCount: articles.take(5).length,
+                    childCount: (articles.length - 1).clamp(0, 4),
                   ),
                 ),
               ],
@@ -309,61 +271,164 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildFilterChips(List<String> labels, List<Match> allMatches) {
+  // ── Widgets ────────────────────────────────────────────────────────────────
+
+  Widget _buildStatsBar(int liveCount, int upcomingCount, int total) {
+    return Row(
+      children: [
+        _statPill(color: AppColors.live, count: liveCount, label: 'LIVE'),
+        const SizedBox(width: 10),
+        _statPill(
+            color: AppColors.upcoming,
+            count: upcomingCount,
+            label: 'UPCOMING'),
+        const Spacer(),
+        Text(
+          '$total Matches',
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statPill(
+      {required Color color, required int count, required String label}) {
+    final active = count > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: active ? color.withValues(alpha: 0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color:
+              active ? color.withValues(alpha: 0.25) : AppColors.border,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: active ? color : AppColors.textMuted,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$count $label',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: active ? color : AppColors.textMuted,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearch() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (v) => setState(() => _searchQuery = v),
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
+        cursorColor: AppColors.primary,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search_rounded,
+              color: AppColors.textMuted, size: 20),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppColors.textMuted, size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                )
+              : null,
+          hintText: 'Search teams, leagues...',
+          hintStyle: const TextStyle(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w400,
+            fontSize: 14,
+          ),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilters(List<String> labels) {
     return SizedBox(
-      height: 44,
+      height: 36,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: labels.length,
         itemBuilder: (context, index) {
           final label = labels[index];
-          final isSelected = _selectedFilter == label;
-
-          Match? sampleMatch;
-          try {
-            sampleMatch = allMatches.firstWhere(
-              (m) => _getTournamentMetadata(m.leagueName, m.sport)['label'] == label,
-            );
-          } catch (_) {}
-
-          final sport = sampleMatch?.sport ?? (label == 'Cricket' ? 'cricket' : 'football');
-          final icon = _getTournamentMetadata(label, sport)['icon'];
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: InkWell(
-              onTap: () => setState(() => _selectedFilter = isSelected ? 'All' : label),
-              borderRadius: BorderRadius.circular(25),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.white,
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: [
-                    if (isSelected)
-                      BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
-                    else
-                      BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 2)),
-                  ],
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : const Color(0xFFF1F3F5),
-                    width: 1.5,
-                  ),
+          final selected = _selectedFilter == label;
+          return GestureDetector(
+            onTap: () =>
+                setState(() => _selectedFilter = selected ? 'All' : label),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: selected ? AppColors.primary : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: selected ? AppColors.primary : AppColors.border,
+                  width: 1.2,
                 ),
-                child: Row(
-                  children: [
-                    Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : AppColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.22),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        )
+                      ]
+                    : [],
+              ),
+              child: Center(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color:
+                        selected ? Colors.white : AppColors.textSecondary,
+                    fontWeight:
+                        selected ? FontWeight.w800 : FontWeight.w600,
+                    fontSize: 12.5,
+                  ),
                 ),
               ),
             ),
@@ -373,52 +438,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildSearchField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, offset: const Offset(0, 5)),
-        ],
-        border: Border.all(color: const Color(0xFFF1F3F5), width: 1),
-      ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (val) => setState(() => _searchQuery = val),
-        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15),
-        cursorColor: AppColors.primary,
-        decoration: InputDecoration(
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 22),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary, size: 20),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() => _searchQuery = '');
-                  },
-                )
-              : null,
-          hintText: 'Search teams or tournaments...',
-          hintStyle: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500, fontSize: 14),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+  Widget _sectionHeader({
+    required IconData icon,
+    required String label,
+    required Color iconColor,
+    int? count,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: iconColor),
+        const SizedBox(width: 7),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.3,
+          ),
         ),
-      ),
+        if (count != null && count > 0) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: iconColor,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
-  Widget _buildMatchCard(Match match) {
-    final matchStatus = match.status;
-    String statusText = 'Starting Soon';
-    if (matchStatus == MatchStatus.live) statusText = 'LIVE';
-    if (matchStatus == MatchStatus.fullTime) statusText = 'Match Finished';
+  Widget _matchTile(Match match) {
+    final isLive = match.status == MatchStatus.live;
+    final isFinished = match.status == MatchStatus.fullTime;
+
+    String statusText = 'UPCOMING';
+    if (isLive) statusText = 'LIVE';
+    if (isFinished) statusText = 'Match Finished';
 
     String timeText = match.time ?? '';
-    if (matchStatus == MatchStatus.upcoming) {
+    if (match.status == MatchStatus.upcoming) {
       final cd = match.countdown;
       if (cd != null) {
-        timeText = 'Starts in ${cd.inHours}h ${cd.inMinutes % 60}m';
+        timeText = cd.inHours > 0
+            ? '${cd.inHours}h ${cd.inMinutes % 60}m'
+            : '${cd.inMinutes}m';
       }
     }
 
@@ -426,6 +502,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onTap: () => context.push('/match-detail', extra: match),
       child: MatchCard(
         leagueName: match.leagueName,
+        leagueLogo: match.leagueLogo,
         teamALogo: match.teamALogo,
         teamAName: match.teamA,
         teamBLogo: match.teamBLogo,
@@ -433,6 +510,106 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         matchDateTime: timeText,
         stadiumName: match.stadium ?? 'TBD',
         matchStatus: statusText,
+        scoreA: match.scoreA,
+        scoreB: match.scoreB,
+        minute: match.minute,
+        sport: match.sport,
+      ),
+    );
+  }
+
+  Widget _buildAppMessage(String message, String type) {
+    final Color bg, accent;
+    final IconData icon;
+    switch (type.toLowerCase()) {
+      case 'warning':
+        bg     = const Color(0xFFFFFBEB);
+        accent = const Color(0xFFF59E0B);
+        icon   = Icons.warning_amber_rounded;
+        break;
+      case 'success':
+        bg     = const Color(0xFFECFDF5);
+        accent = const Color(0xFF10B981);
+        icon   = Icons.check_circle_outline_rounded;
+        break;
+      case 'error':
+        bg     = const Color(0xFFFEF2F2);
+        accent = const Color(0xFFEF4444);
+        icon   = Icons.error_outline_rounded;
+        break;
+      default: // info
+        bg     = const Color(0xFFEFF6FF);
+        accent = AppColors.primary;
+        icon   = Icons.info_outline_rounded;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        child: Container(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: accent.withValues(alpha: 0.30)),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, color: accent, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: accent,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => setState(() => _messageDismissed = true),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: accent.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyState({required IconData icon, required String label}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: AppColors.textMuted.withValues(alpha: 0.2)),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

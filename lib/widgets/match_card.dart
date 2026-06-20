@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 
-class MatchCard extends StatelessWidget {
+class MatchCard extends StatefulWidget {
   final String leagueName;
+  final String leagueLogo;
   final String teamALogo;
   final String teamAName;
   final String teamBLogo;
@@ -11,245 +11,134 @@ class MatchCard extends StatelessWidget {
   final String matchDateTime;
   final String stadiumName;
   final String matchStatus;
+  final String? scoreA;
+  final String? scoreB;
+  final String? minute;
+  final String sport;
 
   const MatchCard({
     super.key,
     required this.leagueName,
+    this.leagueLogo = '',
     required this.teamALogo,
     required this.teamAName,
     required this.teamBLogo,
     required this.teamBName,
     required this.matchDateTime,
-    required this.stadiumName,
+    this.stadiumName = 'TBD',
     required this.matchStatus,
+    this.scoreA,
+    this.scoreB,
+    this.minute,
+    this.sport = 'football',
   });
 
-  String _formatDateTime(String dateTimeStr) {
-    try {
-      final DateTime dateTime = DateTime.parse(dateTimeStr).toLocal();
-      return DateFormat('MMM dd, HH:mm').format(dateTime);
-    } catch (e) {
-      return dateTimeStr;
-    }
+  @override
+  State<MatchCard> createState() => _MatchCardState();
+}
+
+class _MatchCardState extends State<MatchCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+  late final Animation<double> _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _pulseAnim = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
+    );
+    if (_isLive) _pulse.repeat(reverse: true);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final bool isLive = matchStatus.toUpperCase() == 'LIVE';
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
 
+  bool get _isLive => widget.matchStatus.toUpperCase() == 'LIVE';
+  bool get _isFinished =>
+      widget.matchStatus == 'Match Finished' ||
+      widget.matchStatus.toUpperCase() == 'FT';
+  bool get _hasScore =>
+      widget.scoreA != null &&
+      widget.scoreB != null &&
+      widget.scoreA!.isNotEmpty &&
+      widget.scoreB!.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.matchCardBackground,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: _isLive
+              ? [const Color(0xFF0E1F40), const Color(0xFF162747)]
+              : _isFinished
+                  ? [const Color(0xFF0A1328), const Color(0xFF101C38)]
+                  : [const Color(0xFF06113D), const Color(0xFF0C1E52)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: _isLive
+              ? AppColors.live.withValues(alpha: 0.35)
+              : const Color(0x10FFFFFF),
+          width: _isLive ? 1.5 : 1.0,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: _isLive
+                ? AppColors.live.withValues(alpha: 0.18)
+                : Colors.black.withValues(alpha: 0.28),
+            blurRadius: _isLive ? 20 : 12,
+            offset: const Offset(0, 6),
+            spreadRadius: _isLive ? 2 : -4,
           ),
         ],
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
           children: [
-            // Top Accent Bar for LIVE status
-            if (isLive)
-              Container(
-                height: 3,
-                width: double.infinity,
-                color: AppColors.accent,
-              ),
-            
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Column(
-                children: [
-                  // League Header
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(Icons.emoji_events_outlined, color: Colors.white70, size: 14),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          leagueName,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 11,
-                            letterSpacing: 0.2,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isLive)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.accent,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'LIVE',
-                                style: TextStyle(
-                                  color: AppColors.accent,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        Text(
-                          matchStatus,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 10,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Teams Row
-                  Row(
-                    children: [
-                      // Team A
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _buildTeamLogo(teamALogo),
-                            const SizedBox(height: 8),
-                            Text(
-                              teamAName,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      // VS Central Badge
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white.withOpacity(0.1)),
-                              ),
-                              child: const Text(
-                                "VS",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Team B
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _buildTeamLogo(teamBLogo),
-                            const SizedBox(height: 8),
-                            Text(
-                              teamBName,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Bottom Info
-                  Container(
-                    padding: const EdgeInsets.only(top: 12),
-                    decoration: BoxDecoration(
-                      border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1), width: 1)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.calendar_today_outlined, color: Colors.white60, size: 12),
-                            const SizedBox(width: 6),
-                            Text(
-                              _formatDateTime(matchDateTime),
-                              style: const TextStyle(
-                                color: Colors.white60,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (stadiumName.isNotEmpty && stadiumName != 'TBD')
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on_outlined, color: Colors.white60, size: 12),
-                              const SizedBox(width: 4),
-                              Text(
-                                stadiumName,
-                                style: const TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
+            // Ambient live glow blob
+            if (_isLive)
+              Positioned(
+                top: -50,
+                right: -25,
+                child: Container(
+                  width: 130,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.live.withValues(alpha: 0.10),
+                        Colors.transparent,
                       ],
                     ),
                   ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLeagueRow(),
+                  const SizedBox(height: 14),
+                  _buildTeamsRow(),
+                  if (widget.stadiumName.isNotEmpty &&
+                      widget.stadiumName != 'TBD') ...[
+                    const SizedBox(height: 10),
+                    _buildVenueRow(),
+                  ],
                 ],
               ),
             ),
@@ -259,7 +148,257 @@ class MatchCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTeamLogo(String url, {double size = 44}) {
+  // ── League / status row ────────────────────────────────────────────────────
+
+  Widget _buildLeagueRow() {
+    return Row(
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          decoration: const BoxDecoration(
+            color: Color(0x14FFFFFF),
+            borderRadius: BorderRadius.all(Radius.circular(4)),
+          ),
+          child: Icon(
+            widget.sport == 'cricket'
+                ? Icons.sports_cricket_rounded
+                : Icons.sports_soccer_rounded,
+            color: const Color(0x61FFFFFF),
+            size: 10,
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            widget.leagueName,
+            style: const TextStyle(
+              color: Color(0x8AFFFFFF),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        _buildStatusChip(),
+      ],
+    );
+  }
+
+  Widget _buildStatusChip() {
+    if (_isLive) {
+      return AnimatedBuilder(
+        animation: _pulseAnim,
+        builder: (_, __) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: AppColors.live.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: AppColors.live.withValues(alpha: 0.32),
+              width: 0.8,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: AppColors.live.withValues(alpha: _pulseAnim.value),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.live.withValues(alpha: 0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                widget.minute != null && widget.minute!.isNotEmpty
+                    ? "LIVE · ${widget.minute}'"
+                    : 'LIVE',
+                style: const TextStyle(
+                  color: AppColors.live,
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_isFinished) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: const BoxDecoration(
+          color: Color(0x0DFFFFFF),
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+        ),
+        child: const Text(
+          'FT',
+          style: TextStyle(
+            color: Color(0x4DFFFFFF),
+            fontSize: 8.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+        ),
+      );
+    }
+
+    // Upcoming
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.upcoming.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: AppColors.upcoming.withValues(alpha: 0.20),
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        widget.matchDateTime,
+        style: const TextStyle(
+          color: Color(0xFF60A5FA),
+          fontSize: 8.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  // ── Teams + score/VS row ───────────────────────────────────────────────────
+
+  Widget _buildTeamsRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              _buildLogo(widget.teamALogo),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.teamAName,
+                  style: TextStyle(
+                    color: _isFinished
+                        ? const Color(0x80FFFFFF)
+                        : const Color(0xF2FFFFFF),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    letterSpacing: -0.3,
+                    height: 1.25,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: _hasScore ? _buildScore() : _buildVs(),
+        ),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  widget.teamBName,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: _isFinished
+                        ? const Color(0x80FFFFFF)
+                        : const Color(0xF2FFFFFF),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    letterSpacing: -0.3,
+                    height: 1.25,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 10),
+              _buildLogo(widget.teamBLogo),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScore() {
+    return Text(
+      '${widget.scoreA}  –  ${widget.scoreB}',
+      style: TextStyle(
+        color: _isLive ? Colors.white : const Color(0x99FFFFFF),
+        fontWeight: FontWeight.w900,
+        fontSize: _isLive ? 20 : 18,
+        letterSpacing: 2,
+        height: 1,
+      ),
+    );
+  }
+
+  Widget _buildVs() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: const BoxDecoration(
+        color: Color(0x12FFFFFF),
+        borderRadius: BorderRadius.all(Radius.circular(10)),
+        border: Border.fromBorderSide(
+          BorderSide(color: Color(0x17FFFFFF)),
+        ),
+      ),
+      child: const Text(
+        'VS',
+        style: TextStyle(
+          color: Color(0x61FFFFFF),
+          fontWeight: FontWeight.w900,
+          fontSize: 11,
+          letterSpacing: 2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVenueRow() {
+    return Row(
+      children: [
+        const Icon(Icons.stadium_outlined, size: 9, color: Color(0x33FFFFFF)),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            widget.stadiumName,
+            style: const TextStyle(
+              color: Color(0x3DFFFFFF),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLogo(String url, {double size = 38}) {
     return Container(
       width: size,
       height: size,
@@ -268,23 +407,26 @@ class MatchCard extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.22),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(4),
       child: url.isNotEmpty
           ? ClipOval(
               child: Image.network(
                 url,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Icon(Icons.sports, color: AppColors.textSecondary.withOpacity(0.4), size: size * 0.5),
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.sports,
+                  color: AppColors.textMuted,
+                  size: size * 0.45,
+                ),
               ),
             )
-          : Icon(Icons.sports, color: AppColors.textSecondary.withOpacity(0.4), size: size * 0.5),
+          : Icon(Icons.sports, color: AppColors.textMuted, size: size * 0.45),
     );
   }
 }

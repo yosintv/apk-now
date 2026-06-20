@@ -7,6 +7,52 @@ import '../widgets/banner_ad_widget.dart';
 import '../providers/config_provider.dart';
 import '../models/app_config.dart';
 
+// Fades in the new branch content when the active tab index changes,
+// without unmounting the other branches (IndexedStack state is preserved).
+class _BranchFader extends StatefulWidget {
+  final int index;
+  final Widget child;
+  const _BranchFader({required this.index, required this.child});
+
+  @override
+  State<_BranchFader> createState() => _BranchFaderState();
+}
+
+class _BranchFaderState extends State<_BranchFader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+      value: 1.0,
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  }
+
+  @override
+  void didUpdateWidget(_BranchFader old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index) {
+      _ctrl.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      FadeTransition(opacity: _fade, child: widget.child);
+}
+
 class MainShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -28,8 +74,6 @@ class MainShell extends ConsumerWidget {
     try {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        debugPrint('Could not launch $urlString');
       }
     } catch (e) {
       debugPrint('Error launching URL: $e');
@@ -41,196 +85,280 @@ class MainShell extends ConsumerWidget {
     final config = ref.watch(configProvider);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        elevation: 0,
-        centerTitle: true,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: Icon(Icons.menu_rounded, color: Theme.of(context).colorScheme.primary),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        title: Image.asset(
-          'assets/headerimage.png',
-          height: 35,
-          fit: BoxFit.contain,
-        ),
-        shape: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor.withOpacity(0.1), 
-            width: 1
-          ),
-        ),
-      ),
+      appBar: _buildAppBar(context),
       drawer: _buildDrawer(context, config),
-      body: navigationShell,
+      body: _BranchFader(
+        index: navigationShell.currentIndex,
+        child: navigationShell,
+      ),
       bottomNavigationBar: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const BannerAdWidget(),
-            Container(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: BottomNavigationBar(
-                currentIndex: navigationShell.currentIndex,
-                onTap: _onTabSelected,
-                type: BottomNavigationBarType.fixed,
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                selectedItemColor: Theme.of(context).colorScheme.primary,
-                unselectedItemColor: Theme.of(context).unselectedWidgetColor,
-                selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-                elevation: 0,
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home_outlined),
-                    activeIcon: Icon(Icons.home_rounded),
-                    label: 'Home',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.sports_soccer_outlined),
-                    activeIcon: Icon(Icons.sports_soccer_rounded),
-                    label: 'Football',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.sports_cricket_outlined),
-                    activeIcon: Icon(Icons.sports_cricket_rounded),
-                    label: 'Cricket',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.newspaper_outlined),
-                    activeIcon: Icon(Icons.newspaper_rounded),
-                    label: 'News',
-                  ),
-                ],
-              ),
-            ),
+            _buildNavBar(),
           ],
         ),
       ),
     );
   }
 
+  // ── App bar ────────────────────────────────────────────────────────────────
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      scrolledUnderElevation: 1.5,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      centerTitle: true,
+      leading: Builder(
+        builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded, size: 24),
+          color: AppColors.primary,
+          splashRadius: 20,
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        ),
+      ),
+      title: Image.asset(
+        'assets/headerimage.png',
+        height: 32,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const Text(
+          'YoSinTV',
+          style: TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w900,
+            fontSize: 18,
+          ),
+        ),
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.notifications_none_rounded, size: 24),
+          color: AppColors.textSecondary,
+          splashRadius: 20,
+          onPressed: () {},
+        ),
+        const SizedBox(width: 4),
+      ],
+      shape: const Border(
+        bottom: BorderSide(color: Color(0x0F000000), width: 1),
+      ),
+    );
+  }
+
+  // ── Material 3 NavigationBar ───────────────────────────────────────────────
+
+  Widget _buildNavBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 12,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: NavigationBar(
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: _onTabSelected,
+        backgroundColor: Colors.white,
+        indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+        surfaceTintColor: Colors.transparent,
+        height: 62,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        animationDuration: const Duration(milliseconds: 200),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined, size: 22),
+            selectedIcon:
+                Icon(Icons.home_rounded, size: 22, color: AppColors.primary),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.sports_soccer_outlined, size: 22),
+            selectedIcon: Icon(Icons.sports_soccer_rounded,
+                size: 22, color: AppColors.primary),
+            label: 'Football',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.sports_cricket_outlined, size: 22),
+            selectedIcon: Icon(Icons.sports_cricket_rounded,
+                size: 22, color: AppColors.primary),
+            label: 'Cricket',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.newspaper_outlined, size: 22),
+            selectedIcon: Icon(Icons.newspaper_rounded,
+                size: 22, color: AppColors.primary),
+            label: 'News',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Drawer ─────────────────────────────────────────────────────────────────
+
   Widget _buildDrawer(BuildContext context, AppConfig config) {
     return Drawer(
       backgroundColor: AppColors.drawerBackground,
+      width: 284,
       child: Column(
         children: [
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 24.0),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 15,
-                        ),
-                      ],
-                    ),
-                    child: Image.asset(
-                      'assets/logo.png',
-                      height: 50,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'YoSinTV',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    '24x7 - Football | Cricket',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+          // Header gradient
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.drawerGradientStart,
+                  AppColors.drawerGradientEnd,
                 ],
               ),
             ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 70,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 20,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/logo.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.live_tv_rounded,
+                          color: AppColors.primary,
+                          size: 26,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'YoSinTV',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        '24/7 · Football & Cricket',
+                        style: TextStyle(
+                          color: Color(0x99FFFFFF),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          const Divider(color: Colors.white10, height: 1, indent: 20, endIndent: 20),
+
+          const Divider(height: 1, thickness: 1, color: Color(0x15FFFFFF)),
+
+          // Nav items
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               children: [
-                _buildDrawerTile(
+                _drawerSection('NAVIGATION'),
+                _drawerTile(
                   context,
                   icon: Icons.home_rounded,
-                  title: 'Home',
+                  label: 'Home',
                   isSelected: navigationShell.currentIndex == 0,
                   onTap: () {
                     Navigator.pop(context);
                     _onTabSelected(0);
                   },
                 ),
-                _buildDrawerTile(
+                _drawerTile(
                   context,
                   icon: Icons.sports_soccer_rounded,
-                  title: 'Football',
+                  label: 'Football',
                   isSelected: navigationShell.currentIndex == 1,
                   onTap: () {
                     Navigator.pop(context);
                     _onTabSelected(1);
                   },
                 ),
-                _buildDrawerTile(
+                _drawerTile(
                   context,
                   icon: Icons.sports_cricket_rounded,
-                  title: 'Cricket',
+                  label: 'Cricket',
                   isSelected: navigationShell.currentIndex == 2,
                   onTap: () {
                     Navigator.pop(context);
                     _onTabSelected(2);
                   },
                 ),
-                _buildDrawerTile(
+                _drawerTile(
                   context,
                   icon: Icons.newspaper_rounded,
-                  title: 'News',
+                  label: 'News',
                   isSelected: navigationShell.currentIndex == 3,
                   onTap: () {
                     Navigator.pop(context);
                     _onTabSelected(3);
                   },
                 ),
-                _buildDrawerTile(
+                const SizedBox(height: 8),
+                const Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Color(0x10FFFFFF),
+                    indent: 20,
+                    endIndent: 20),
+                const SizedBox(height: 8),
+                _drawerSection('MORE'),
+                _drawerTile(
                   context,
-                  icon: Icons.info_outline,
-                  title: 'About Us',
+                  icon: Icons.info_outline_rounded,
+                  label: 'About Us',
                   isSelected: false,
                   onTap: () {
                     Navigator.pop(context);
                     _launchURL(config.aboutUsLink);
                   },
                 ),
-                _buildDrawerTile(
+                _drawerTile(
                   context,
-                  icon: Icons.privacy_tip,
-                  title: 'Privacy Policy',
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Privacy Policy',
                   isSelected: false,
                   onTap: () {
                     Navigator.pop(context);
@@ -240,30 +368,32 @@ class MainShell extends ConsumerWidget {
               ],
             ),
           ),
+
+          // Social + version
           Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
             child: Column(
               children: [
-                _buildSocialButton(
-                  text: 'Telegram Community',
+                _socialButton(
+                  label: 'Telegram Community',
                   color: AppColors.telegram,
                   icon: Icons.send_rounded,
                   onTap: () => _launchURL(config.telegramLink),
                 ),
                 const SizedBox(height: 8),
-                _buildSocialButton(
-                  text: 'WhatsApp Support',
+                _socialButton(
+                  label: 'WhatsApp Support',
                   color: AppColors.whatsapp,
-                  icon: Icons.chat_rounded,
+                  icon: Icons.chat_bubble_outline_rounded,
                   onTap: () => _launchURL(config.whatsappLink),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
                 const Text(
-                  'Version 1.1',
+                  'Version 1.1.2',
                   style: TextStyle(
-                    color: Colors.white38,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    color: Color(0x40FFFFFF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -274,58 +404,107 @@ class MainShell extends ConsumerWidget {
     );
   }
 
-  Widget _buildDrawerTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      child: ListTile(
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.white : Colors.white60,
+  Widget _drawerSection(String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 8, 28, 6),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0x40FFFFFF),
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
         ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
-            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
-            fontSize: 16,
-          ),
-        ),
-        tileColor: isSelected ? AppColors.accent.withOpacity(0.8) : Colors.transparent,
       ),
     );
   }
 
-  Widget _buildSocialButton({
-    required String text,
+  Widget _drawerTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.accent.withValues(alpha: 0.90)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? Colors.white : const Color(0x8AFFFFFF),
+                  size: 20,
+                ),
+                const SizedBox(width: 14),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected
+                        ? Colors.white
+                        : const Color(0xB3FFFFFF),
+                    fontWeight: isSelected
+                        ? FontWeight.w800
+                        : FontWeight.w500,
+                    fontSize: 15,
+                  ),
+                ),
+                if (isSelected) ...[
+                  const Spacer(),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _socialButton({
+    required String label,
     required Color color,
     required IconData icon,
     required VoidCallback onTap,
   }) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 46,
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+              borderRadius: BorderRadius.circular(12)),
         ),
         onPressed: onTap,
-        icon: Icon(icon, size: 20),
+        icon: Icon(icon, size: 18),
         label: Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
         ),
       ),
     );

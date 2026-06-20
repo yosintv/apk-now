@@ -69,6 +69,7 @@ class AppConfig {
 
   final bool maintenanceMode;
   final String maintenanceMessage;
+  final bool appMessageEnabled;
   final String appMessage;
   final String appMessageType;
 
@@ -107,6 +108,7 @@ class AppConfig {
     required this.googleAnalyticsId,
     required this.maintenanceMode,
     required this.maintenanceMessage,
+    required this.appMessageEnabled,
     required this.appMessage,
     required this.appMessageType,
     required this.whatsappLink,
@@ -142,6 +144,7 @@ class AppConfig {
     googleAnalyticsId: '',
     maintenanceMode: false,
     maintenanceMessage: '',
+    appMessageEnabled: false,
     appMessage: '',
     appMessageType: 'info',
     whatsappLink: '',
@@ -206,6 +209,7 @@ class AppConfig {
 
       maintenanceMode: _toBool(json['maintenance_mode'] ?? json['maintenanceMode'], false),
       maintenanceMessage: (json['maintenance_message'] ?? json['maintenanceMessage'] ?? '').toString(),
+      appMessageEnabled: _toBool(json['app_message_enabled'] ?? json['appMessageEnabled'], false),
       appMessage: (json['app_message'] ?? json['appMessage'] ?? '').toString(),
       appMessageType: (json['app_message_type'] ?? json['appMessageType'] ?? 'info').toString(),
       
@@ -252,6 +256,7 @@ class AppConfig {
     'google_analytics_id': googleAnalyticsId,
     'maintenance_mode': maintenanceMode,
     'maintenance_message': maintenanceMessage,
+    'app_message_enabled': appMessageEnabled,
     'app_message': appMessage,
     'app_message_type': appMessageType,
     'whatsapp_link': whatsappLink,

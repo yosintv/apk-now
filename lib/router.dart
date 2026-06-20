@@ -68,16 +68,48 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/match-detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final match = state.extra as Match;
-          return MatchDetailScreen(match: match);
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: MatchDetailScreen(match: match),
+            transitionDuration: const Duration(milliseconds: 300),
+            reverseTransitionDuration: const Duration(milliseconds: 220),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+              final slide = Tween<Offset>(
+                begin: const Offset(0, 0.05),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: fade,
+                child: SlideTransition(position: slide, child: child),
+              );
+            },
+          );
         },
       ),
       GoRoute(
         path: '/article-detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final article = state.extra as Article;
-          return ArticleDetailScreen(article: article);
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ArticleDetailScreen(article: article),
+            transitionDuration: const Duration(milliseconds: 300),
+            reverseTransitionDuration: const Duration(milliseconds: 220),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+              final slide = Tween<Offset>(
+                begin: const Offset(0, 0.05),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: fade,
+                child: SlideTransition(position: slide, child: child),
+              );
+            },
+          );
         },
       ),
       StatefulShellRoute.indexedStack(
