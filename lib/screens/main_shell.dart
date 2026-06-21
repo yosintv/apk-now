@@ -389,7 +389,7 @@ class MainShell extends ConsumerWidget {
                 ),
                 const SizedBox(height: 18),
                 const Text(
-                  'Version 1.1.2',
+                  'Version 1.2.0',
                   style: TextStyle(
                     color: Color(0x40FFFFFF),
                     fontSize: 11,

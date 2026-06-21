@@ -54,13 +54,15 @@ Fail? → Stay with Asset Config values
 
 | Parameter | Type | Purpose | Values |
 |-----------|------|---------|--------|
-| `review_mode` | boolean | Disable ads for store review | true/false |
-| `streaming_enabled` | boolean | Show streaming links | true/false |
+| `review_mode` | boolean | **Universal kill-switch for store review** — disables ALL match links AND all ads. Set true before submitting to Play Store/App Store to avoid policy violations. Restore to false after approval. | true/false |
+| `streaming_enabled` | boolean | **Time-based match links toggle** — show or hide streaming links at any time without a review. Use false during off-peak hours when no matches are live, true when matches are on. | true/false |
 | `ads_enabled` | boolean | Master ad switch | true/false |
 | `banner_enabled` | boolean | Banner ads in lists | true/false |
 | `rewarded_enabled` | boolean | Rewarded ads | true/false |
 | `app_open_enabled` | boolean | Ad on app resume | true/false |
 | `interstitial_enabled` | boolean | Full-screen ad on match detail | true/false |
+
+> **Match links visibility rule:** Links are shown only when BOTH `review_mode = false` AND `streaming_enabled = true`. Either flag being in the "off" state completely hides all match links and the ad above them.
 
 ### **AdMob Ad Unit IDs**
 
@@ -113,17 +115,9 @@ Fail? → Stay with Asset Config values
 
 ## 🎯 Common Use Cases
 
-### **Scenario 1: Disable Ads During App Review**
+### **Scenario 1: App Store / Play Store Review**
 
-**Current config:**
-```json
-{
-  "ads_enabled": true,
-  "review_mode": false
-}
-```
-
-**For App Store/Play Store Review:**
+**Before submitting for review:**
 ```json
 {
   "review_mode": true,
@@ -131,8 +125,37 @@ Fail? → Stay with Asset Config values
 }
 ```
 
-**Result:** ✅ Ads disabled, app can pass review
-**Then restore after approval** ✅
+**Result:** ✅ ALL match/streaming links hidden + all ads disabled. Safe for store review.
+
+**After approval — restore:**
+```json
+{
+  "review_mode": false,
+  "ads_enabled": true
+}
+```
+
+---
+
+### **Scenario 1b: Temporarily Hide Streaming Links (No Review)**
+
+Use this when there are no live matches or you want to pause streaming for any reason — without going through a store review cycle:
+
+**Hide links:**
+```json
+{
+  "streaming_enabled": false
+}
+```
+
+**Show links again:**
+```json
+{
+  "streaming_enabled": true
+}
+```
+
+**Result:** Match links hidden/shown instantly on next app open. Ads are unaffected.
 
 ---
 
@@ -320,9 +343,11 @@ Then update URLs in `assets/app_config.json` to `http://localhost:8000/main-conf
 | **Banner Ads** | banner_enabled | Every 3 items | No banners |
 | **Interstitial** | interstitial_enabled | Match detail | Skip fullscreen ad |
 | **App Open** | app_open_enabled | On resume | Skip resume ad |
-| **Streaming** | streaming_enabled | Show links | Hide links |
-| **Review Mode** | review_mode | No ads | Ads enabled |
+| **Streaming links** | streaming_enabled | Links visible | Links hidden (ads unaffected) |
+| **Review Mode** | review_mode | Links + ads ALL hidden | Normal |
 | **Maintenance** | maintenance_mode | Block app | Normal |
+
+> `review_mode` overrides both `streaming_enabled` and `ads_enabled` — it's the nuclear option for store review.
 
 ---
 

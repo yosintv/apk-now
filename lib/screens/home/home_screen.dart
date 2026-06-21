@@ -16,9 +16,13 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   String _selectedFilter = 'All';
   String _searchQuery = '';
+
+  @override
+  bool get wantKeepAlive => true;
   bool _messageDismissed = false;
   final TextEditingController _searchController = TextEditingController();
 
@@ -61,6 +65,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final footballAsync = ref.watch(footballMatchesProvider);
     final cricketAsync = ref.watch(cricketMatchesProvider);
     final articlesAsync = ref.watch(articlesProvider);
@@ -198,18 +203,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (ctx, index) {
-                      if (index > 0 && index % 4 == 0) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 6),
-                          child: AdBannerWidget(),
-                        );
+                      if (index > 0 && index % 3 == 0) {
+                        return const AdBannerWidget();
                       }
-                      final di = index - (index ~/ 4);
+                      final di = index - (index ~/ 3);
                       if (di < 0 || di >= nonLiveMatches.length) return null;
                       return _matchTile(nonLiveMatches[di]);
                     },
                     childCount:
-                        nonLiveMatches.length + (nonLiveMatches.length ~/ 4),
+                        nonLiveMatches.length + (nonLiveMatches.length ~/ 3),
                   ),
                 ),
 

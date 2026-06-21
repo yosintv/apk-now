@@ -3,10 +3,12 @@
 // Reads API URLs from the live AppConfig, fetches via ApiService,
 // and applies render-time sorting: LIVE → Upcoming (chronological) → Full Time.
 
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/match.dart';
 import '../models/article.dart';
 import '../providers/config_provider.dart';
+import '../services/notification_service.dart';
 
 // ---------------------------------------------------------------------------
 // Sorting helper
@@ -44,7 +46,9 @@ final footballMatchesProvider =
     return Match.fromJson(m);
   }).toList();
 
-  return _sortMatches(matches);
+  final sorted = _sortMatches(matches);
+  unawaited(NotificationService.scheduleMatchNotifications(sorted, sport: 'football'));
+  return sorted;
 });
 
 // ---------------------------------------------------------------------------
@@ -63,7 +67,9 @@ final cricketMatchesProvider =
     return Match.fromJson(m);
   }).toList();
 
-  return _sortMatches(matches);
+  final sorted = _sortMatches(matches);
+  unawaited(NotificationService.scheduleMatchNotifications(sorted, sport: 'cricket'));
+  return sorted;
 });
 
 // ---------------------------------------------------------------------------

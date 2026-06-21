@@ -26,6 +26,14 @@ class AdService {
   AppOpenAd? _appOpenAd;
   InterstitialAd? _interstitialAd;
   RewardedAd? _rewardedAd;
+
+  static AdRequest buildRequest() => const AdRequest(
+    keywords: [
+      'sports', 'football', 'cricket', 'live sports', 'streaming',
+      'soccer', 'ipl', 'premier league', 'champions league', 'world cup',
+    ],
+    contentUrl: 'https://yosintv.net',
+  );
   
   bool _isShowingAd = false;
   bool _appOpenShownOnce = false;
@@ -38,7 +46,7 @@ class AdService {
 
   AdService(this._config);
 
-  bool get adsAllowed => _config.adsEnabled && !_config.reviewMode;
+  bool get adsAllowed => _config.adsEnabled;
 
   String get bannerAdId => _config.bannerAdId;
   String get appOpenAdId => _config.appOpenAdId;
@@ -57,7 +65,7 @@ class AdService {
 
     AppOpenAd.load(
       adUnitId: appOpenAdId,
-      request: const AdRequest(),
+      request: AdService.buildRequest(),
       adLoadCallback: AppOpenAdLoadCallback(
         onAdLoaded: (ad) {
           _appOpenAd = ad;
@@ -98,7 +106,7 @@ class AdService {
     if (!adsAllowed || !_config.interstitialEnabled) return;
     InterstitialAd.load(
       adUnitId: interstitialAdId,
-      request: const AdRequest(),
+      request: AdService.buildRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) => _interstitialAd = ad,
         onAdFailedToLoad: (error) => _interstitialAd = null,
@@ -147,7 +155,7 @@ class AdService {
     if (!adsAllowed || !_config.rewardedEnabled) return;
     RewardedAd.load(
       adUnitId: rewardedAdId,
-      request: const AdRequest(),
+      request: AdService.buildRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) => _rewardedAd = ad,
         onAdFailedToLoad: (error) => _rewardedAd = null,

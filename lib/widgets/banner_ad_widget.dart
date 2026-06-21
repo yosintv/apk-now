@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../providers/config_provider.dart';
+import '../services/ad_service.dart';
 
 class BannerAdWidget extends ConsumerStatefulWidget {
   const BannerAdWidget({super.key});
@@ -13,39 +14,32 @@ class BannerAdWidget extends ConsumerStatefulWidget {
 class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAd();
-  }
+  bool _isLoading = false;
 
   void _loadAd() {
-    if (_bannerAd != null) return;
+    if (_isLoading || _bannerAd != null) return;
 
     final config = ref.read(configProvider);
-    if (!config.adsEnabled || !config.bannerEnabled || config.reviewMode || config.bannerAdId.isEmpty) {
+    if (!config.adsEnabled || !config.bannerEnabled || config.reviewMode ||
+        config.bannerAdId.isEmpty) {
       return;
     }
 
+    _isLoading = true;
     _bannerAd = BannerAd(
       adUnitId: config.bannerAdId,
       size: AdSize.banner,
-      request: const AdRequest(),
+      request: AdService.buildRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          if (mounted) {
-            setState(() {
-              _isLoaded = true;
-            });
-          }
+          if (mounted) setState(() { _isLoaded = true; _isLoading = false; });
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
           if (mounted) {
-            setState(() {
-              _isLoaded = false;
-              _bannerAd = null;
+            setState(() { _isLoaded = false; _bannerAd = null; _isLoading = false; });
+            Future.delayed(const Duration(seconds: 5), () {
+              if (mounted && _bannerAd == null && !_isLoading) _loadAd();
             });
           }
         },
@@ -61,10 +55,12 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(adSdkInitializedProvider, (_, isInit) {
+      if (isInit && _bannerAd == null && !_isLoading) _loadAd();
+    });
+
     final ad = _bannerAd;
-    if (!_isLoaded || ad == null) {
-      return const SizedBox.shrink();
-    }
+    if (!_isLoaded || ad == null) return const SizedBox.shrink();
 
     return Container(
       color: Colors.white,

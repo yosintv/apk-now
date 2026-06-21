@@ -13,6 +13,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'router.dart';
 import 'theme/app_colors.dart';
 import 'services/ad_service.dart';
+import 'services/notification_service.dart';
 import 'widgets/loading_screen.dart';
 import 'providers/config_provider.dart';
 import 'providers/connectivity_provider.dart';
@@ -28,6 +29,9 @@ void main() async {
   } catch (e) {
     debugPrint("Firebase/Dotenv Init Failed: $e");
   }
+
+  // Init notifications concurrently — completes before matches are fetched
+  unawaited(NotificationService.init());
 
   runApp(const ProviderScope(child: YoSinTVApp()));
 }
@@ -102,11 +106,16 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
       await MobileAds.instance.initialize();
 
       final testDeviceId = dotenv.env['ADMOB_TEST_DEVICE_ID'];
-      if (testDeviceId != null && testDeviceId.isNotEmpty) {
-        await MobileAds.instance.updateRequestConfiguration(
-          RequestConfiguration(testDeviceIds: [testDeviceId]),
-        );
-      }
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(
+          testDeviceIds: (testDeviceId != null && testDeviceId.isNotEmpty)
+              ? [testDeviceId]
+              : null,
+          maxAdContentRating: MaxAdContentRating.ma,
+          tagForChildDirectedTreatment: TagForChildDirectedTreatment.no,
+          tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.no,
+        ),
+      );
 
       ref.read(adSdkInitializedProvider.notifier).state = true;
     } catch (e) {

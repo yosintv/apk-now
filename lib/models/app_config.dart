@@ -82,6 +82,8 @@ class AppConfig {
   final String popupTitle;
   final String popupText;
 
+  final int rewardedAdTime;
+
   final String footballApiUrl;
   final String cricketApiUrl;
   final String articlesApiUrl;
@@ -118,6 +120,7 @@ class AppConfig {
     required this.popupEnabled,
     required this.popupTitle,
     required this.popupText,
+    required this.rewardedAdTime,
     required this.footballApiUrl,
     required this.cricketApiUrl,
     required this.articlesApiUrl,
@@ -154,13 +157,19 @@ class AppConfig {
     popupEnabled: false,
     popupTitle: '',
     popupText: '',
+    rewardedAdTime: 1,
     footballApiUrl: '',
     cricketApiUrl: '',
     articlesApiUrl: '',
     altConfigUrl: '',
   );
 
-  bool get shouldShowAds => adsEnabled && !reviewMode;
+  bool get shouldShowAds => adsEnabled;
+
+  // True only when both flags allow it.
+  // review_mode: true  → always false (store review safety)
+  // streaming_enabled: false → false (time-based kill-switch)
+  bool get shouldShowLinks => streamingEnabled && !reviewMode;
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
     AppUpdateInfo? update;
@@ -221,7 +230,10 @@ class AppConfig {
       popupEnabled: _toBool(json['popup_enabled'] ?? json['popupEnabled'], false),
       popupTitle: (json['popup_title'] ?? json['popupTitle'] ?? '').toString(),
       popupText: (json['popup_text'] ?? json['popupText'] ?? '').toString(),
-      
+      rewardedAdTime: (json['rewarded_ad_id_time'] ?? json['rewardedAdTime'] ?? 1) is int
+          ? (json['rewarded_ad_id_time'] ?? json['rewardedAdTime'] ?? 1) as int
+          : int.tryParse((json['rewarded_ad_id_time'] ?? json['rewardedAdTime'] ?? '1').toString()) ?? 1,
+
       footballApiUrl: (json['football_api_url'] ?? json['footballApiUrl'] ?? '').toString(),
       cricketApiUrl: (json['cricket_api_url'] ?? json['cricketApiUrl'] ?? '').toString(),
       articlesApiUrl: (json['articles_api_url'] ?? json['articlesApiUrl'] ?? '').toString(),
@@ -266,6 +278,7 @@ class AppConfig {
     'popup_enabled': popupEnabled,
     'popup_title': popupTitle,
     'popup_text': popupText,
+    'rewarded_ad_id_time': rewardedAdTime,
     'football_api_url': footballApiUrl,
     'cricket_api_url': cricketApiUrl,
     'articles_api_url': articlesApiUrl,

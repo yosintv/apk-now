@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
 import '../widgets/match_card.dart';
+import '../widgets/news_card.dart';
 import '../providers/matches_provider.dart';
 import '../widgets/ad_banner_widget.dart';
 import '../models/match.dart';
+import '../models/article.dart';
 
 class FootballScreen extends ConsumerStatefulWidget {
   const FootballScreen({super.key});
@@ -14,8 +16,12 @@ class FootballScreen extends ConsumerStatefulWidget {
   ConsumerState<FootballScreen> createState() => _FootballScreenState();
 }
 
-class _FootballScreenState extends ConsumerState<FootballScreen> {
+class _FootballScreenState extends ConsumerState<FootballScreen>
+    with AutomaticKeepAliveClientMixin {
   String _selectedFilter = 'All';
+
+  @override
+  bool get wantKeepAlive => true;
 
   String _leagueLabel(String name) {
     final n = name.toLowerCase();
@@ -33,7 +39,10 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final matchesAsync = ref.watch(footballMatchesProvider);
+    final articlesAsync = ref.watch(articlesProvider);
+    final articles = articlesAsync.valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -57,7 +66,10 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
 
           return RefreshIndicator(
             color: AppColors.primary,
-            onRefresh: () async => ref.invalidate(footballMatchesProvider),
+            onRefresh: () async {
+              ref.invalidate(footballMatchesProvider);
+              ref.invalidate(articlesProvider);
+            },
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
@@ -65,23 +77,22 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
                   child: _buildTopBar(liveCount, filtered.length, filterLabels),
                 ),
 
-                if (allMatches.isEmpty)
-                  SliverFillRemaining(
-                    child: _emptyState(
-                        Icons.sports_soccer_rounded, 'No football matches'),
-                  )
-                else if (filtered.isEmpty)
+                if (allMatches.isEmpty) ...[
+                  // No matches — show news instead of blank screen
+                  ..._buildNewsSlivers(articles, emptyMode: true),
+                ] else if (filtered.isEmpty)
                   SliverFillRemaining(
                     child: _emptyState(Icons.filter_list_off_rounded,
                         'No matches for this filter'),
                   )
                 else if (_selectedFilter == 'All')
-                  ..._buildGroupedSlivers(filtered)
+                  ..._buildGroupedSlivers(filtered, articles)
                 else ...[
                   SliverPadding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 24),
+                    padding: const EdgeInsets.only(top: 8),
                     sliver: _buildFlatList(filtered),
                   ),
+                  ..._buildNewsSlivers(articles),
                 ],
               ],
             ),
@@ -96,14 +107,12 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
     );
   }
 
-  // ── Top bar: sport header + filter chips ───────────────────────────────────
+  // ── Top bar ────────────────────────────────────────────────────────────────
 
-  Widget _buildTopBar(
-      int liveCount, int total, List<String> filterLabels) {
+  Widget _buildTopBar(int liveCount, int total, List<String> filterLabels) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Sport identity header
         Container(
           margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -163,8 +172,8 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
               ),
               if (liveCount > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.live,
                     borderRadius: BorderRadius.circular(10),
@@ -195,7 +204,6 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
             ],
           ),
         ),
-        // Filter chips
         Padding(
           padding: const EdgeInsets.only(top: 12),
           child: _buildFilterChips(filterLabels),
@@ -215,8 +223,8 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
           final label = labels[index];
           final selected = _selectedFilter == label;
           return GestureDetector(
-            onTap: () => setState(
-                () => _selectedFilter = selected ? 'All' : label),
+            onTap: () =>
+                setState(() => _selectedFilter = selected ? 'All' : label),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(right: 8),
@@ -236,13 +244,14 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
                           offset: const Offset(0, 3),
                         )
                       ]
-                    : [],
+                    : const [],
               ),
               child: Center(
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: selected ? Colors.white : AppColors.textSecondary,
+                    color:
+                        selected ? Colors.white : AppColors.textSecondary,
                     fontWeight:
                         selected ? FontWeight.w800 : FontWeight.w600,
                     fontSize: 12.5,
@@ -256,9 +265,10 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
     );
   }
 
-  // ── Competition-grouped sliver list ────────────────────────────────────────
+  // ── Match list builders ────────────────────────────────────────────────────
 
-  List<Widget> _buildGroupedSlivers(List<Match> matches) {
+  List<Widget> _buildGroupedSlivers(
+      List<Match> matches, List<Article> articles) {
     final Map<String, List<Match>> groups = {};
     for (final m in matches) {
       groups.putIfAbsent(m.leagueName, () => []).add(m);
@@ -268,28 +278,16 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
     int adCounter = 0;
 
     for (final entry in groups.entries) {
-      final liveInGroup =
-          entry.value.where((m) => m.status == MatchStatus.live).length;
-
-      slivers.add(SliverToBoxAdapter(
-        child: _competitionHeader(entry.key, liveInGroup),
-      ));
-
       for (final match in entry.value) {
         slivers.add(SliverToBoxAdapter(child: _matchTile(match)));
         adCounter++;
-        if (adCounter % 4 == 0) {
-          slivers.add(const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: AdBannerWidget(),
-            ),
-          ));
+        if (adCounter % 3 == 0) {
+          slivers.add(const SliverToBoxAdapter(child: AdBannerWidget()));
         }
       }
     }
 
-    slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 24)));
+    slivers.addAll(_buildNewsSlivers(articles));
     return slivers;
   }
 
@@ -297,100 +295,14 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          if (index > 0 && index % 4 == 0) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: AdBannerWidget(),
-            );
+          if (index > 0 && index % 3 == 0) {
+            return const AdBannerWidget();
           }
-          final di = index - (index ~/ 4);
+          final di = index - (index ~/ 3);
           if (di < 0 || di >= matches.length) return null;
           return _matchTile(matches[di]);
         },
-        childCount: matches.length + (matches.length ~/ 4),
-      ),
-    );
-  }
-
-  Widget _competitionHeader(String leagueName, int liveCount) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: AppColors.footballLight,
-              borderRadius: BorderRadius.circular(7),
-            ),
-            child: const Icon(Icons.emoji_events_outlined,
-                size: 14, color: AppColors.football),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              leagueName,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.2,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (liveCount > 0) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.live.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                    color: AppColors.live.withValues(alpha: 0.25),
-                    width: 0.8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: const BoxDecoration(
-                      color: AppColors.live,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$liveCount LIVE',
-                    style: const TextStyle(
-                      color: AppColors.live,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
+        childCount: matches.length + (matches.length ~/ 3),
       ),
     );
   }
@@ -413,24 +325,91 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
       }
     }
 
-    return GestureDetector(
-      onTap: () => context.push('/match-detail', extra: match),
-      child: MatchCard(
-        leagueName: match.leagueName,
-        leagueLogo: match.leagueLogo,
-        teamALogo: match.teamALogo,
-        teamAName: match.teamA,
-        teamBLogo: match.teamBLogo,
-        teamBName: match.teamB,
-        matchDateTime: timeText,
-        stadiumName: match.stadium ?? 'TBD',
-        matchStatus: statusText,
-        scoreA: match.scoreA,
-        scoreB: match.scoreB,
-        minute: match.minute,
-        sport: match.sport,
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTap: () => context.push('/match-detail', extra: match),
+        child: MatchCard(
+          leagueName: match.leagueName,
+          leagueLogo: match.leagueLogo,
+          teamALogo: match.teamALogo,
+          teamAName: match.teamA,
+          teamBLogo: match.teamBLogo,
+          teamBName: match.teamB,
+          matchDateTime: timeText,
+          stadiumName: match.stadium ?? 'TBD',
+          matchStatus: statusText,
+          scoreA: match.scoreA,
+          scoreB: match.scoreB,
+          minute: match.minute,
+          sport: match.sport,
+        ),
       ),
     );
+  }
+
+  // ── News section ───────────────────────────────────────────────────────────
+
+  List<Widget> _buildNewsSlivers(List<Article> articles,
+      {bool emptyMode = false}) {
+    if (articles.isEmpty) {
+      if (emptyMode) {
+        return [
+          SliverFillRemaining(
+            child: _emptyState(
+                Icons.sports_soccer_rounded, 'No football matches today'),
+          )
+        ];
+      }
+      return [const SliverToBoxAdapter(child: SizedBox(height: 24))];
+    }
+
+    final limited = articles.take(6).toList();
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+          child: Row(
+            children: [
+              Container(
+                width: 3,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Latest News',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (ctx, i) => RepaintBoundary(
+            child: GestureDetector(
+              onTap: () => ctx.push('/article-detail', extra: limited[i]),
+              child: NewsCard(
+                title: limited[i].title,
+                category: limited[i].category,
+                timestamp: limited[i].relativeTime,
+                logoUrl: limited[i].imageUrl ?? '',
+              ),
+            ),
+          ),
+          childCount: limited.length,
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 24)),
+    ];
   }
 
   // ── Empty / error states ───────────────────────────────────────────────────
@@ -440,7 +419,8 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: AppColors.textMuted.withValues(alpha: 0.2)),
+          Icon(icon,
+              size: 64, color: AppColors.textMuted.withValues(alpha: 0.2)),
           const SizedBox(height: 12),
           Text(
             message,
@@ -484,8 +464,7 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
             const SizedBox(height: 6),
             const Text(
               'Check your connection and try again',
-              style: TextStyle(
-                  color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
@@ -495,8 +474,8 @@ class _FootballScreenState extends ConsumerState<FootballScreen> {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Try Again',

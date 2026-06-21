@@ -14,8 +14,12 @@ class NewsScreen extends ConsumerStatefulWidget {
   ConsumerState<NewsScreen> createState() => _NewsScreenState();
 }
 
-class _NewsScreenState extends ConsumerState<NewsScreen> {
+class _NewsScreenState extends ConsumerState<NewsScreen>
+    with AutomaticKeepAliveClientMixin {
   String _selectedCategory = 'All';
+
+  @override
+  bool get wantKeepAlive => true;
 
   static const _gradientStart = Color(0xFF1A0533);
   static const _gradientEnd = Color(0xFF5B21B6);
@@ -32,6 +36,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final articlesAsync = ref.watch(articlesProvider);
 
     return Scaffold(
@@ -106,10 +111,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                         (context, index) {
                           // Ad every 4 compact items
                           if (index > 0 && index % 5 == 4) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 6),
-                              child: AdBannerWidget(),
-                            );
+                            return const AdBannerWidget();
                           }
                           final dataIndex =
                               index - (index ~/ 5);

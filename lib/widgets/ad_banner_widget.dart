@@ -11,83 +11,74 @@ class AdBannerWidget extends ConsumerStatefulWidget {
   ConsumerState<AdBannerWidget> createState() => _AdBannerWidgetState();
 }
 
-class _AdBannerWidgetState extends ConsumerState<AdBannerWidget> {
+class _AdBannerWidgetState extends ConsumerState<AdBannerWidget>
+    with AutomaticKeepAliveClientMixin {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
   bool _isLoading = false;
-  AdSize? _adSize;
   DateTime? _lastFailTime;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Use ref.read here to avoid re-triggering logic on every build cycle
-    final isInit = ref.read(adSdkInitializedProvider);
-    if (isInit && _bannerAd == null && !_isLoading) {
-      _loadAd();
-    }
+  bool get wantKeepAlive => _isLoaded;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start loading on the first frame — earliest possible moment.
+    // Uses addPostFrameCallback so the widget is fully in the tree
+    // and ref/context are safe to use.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ref.read(adSdkInitializedProvider)) { _loadAd(); }
+    });
   }
 
-  Future<void> _loadAd() async {
+  void _loadAd() {
     final lastFail = _lastFailTime;
-    if (lastFail != null && 
-        DateTime.now().difference(lastFail).inSeconds < 15) {
-      return;
-    }
+    if (lastFail != null &&
+        DateTime.now().difference(lastFail).inSeconds < 5) return;
+    if (_isLoading || _bannerAd != null) return;
 
     final adService = ref.read(adServiceProvider);
     final config = ref.read(configProvider);
+    if (!adService.adsAllowed ||
+        !config.bannerEnabled ||
+        adService.bannerAdId.isEmpty) { return; }
 
-    if (!adService.adsAllowed || !config.bannerEnabled || adService.bannerAdId.isEmpty) return;
+    _isLoading = true;
 
-    if (!mounted) return;
-    
-    final mediaQuery = MediaQuery.maybeOf(context);
-    if (mediaQuery == null) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
-          mediaQuery.size.width.truncate());
-
-      if (size == null) {
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
-
-      _bannerAd = BannerAd(
-        adUnitId: adService.bannerAdId,
-        size: size,
-        request: const AdRequest(),
-        listener: BannerAdListener(
-          onAdLoaded: (ad) {
-            if (mounted) {
-              setState(() {
-                _isLoaded = true;
-                _isLoading = false;
-                _adSize = size;
-              });
-            }
-          },
-          onAdFailedToLoad: (ad, error) {
-            ad.dispose();
-            if (mounted) {
-              setState(() {
-                _bannerAd = null;
-                _isLoaded = false;
-                _isLoading = false;
-                _lastFailTime = DateTime.now();
-              });
-            }
-          },
-        ),
-      )..load();
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    // AdSize.banner (320×50) is synchronous — no async platform call needed.
+    // getLargeAnchoredAdaptiveBannerAdSize was causing ~40px of whitespace
+    // inside AdWidget and added ~100ms of latency.
+    _bannerAd = BannerAd(
+      adUnitId: adService.bannerAdId,
+      size: AdSize.banner,
+      request: AdService.buildRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          if (mounted) {
+            setState(() {
+              _isLoaded = true;
+              _isLoading = false;
+            });
+            updateKeepAlive();
+          }
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          if (mounted) {
+            setState(() {
+              _bannerAd = null;
+              _isLoaded = false;
+              _isLoading = false;
+              _lastFailTime = DateTime.now();
+            });
+            Future.delayed(const Duration(seconds: 5), () {
+              if (mounted && _bannerAd == null && !_isLoading) _loadAd();
+            });
+          }
+        },
+      ),
+    )..load();
   }
 
   @override
@@ -98,18 +89,24 @@ class _AdBannerWidgetState extends ConsumerState<AdBannerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    ref.listen<bool>(adSdkInitializedProvider, (_, isInit) {
+      if (isInit && _bannerAd == null && !_isLoading) _loadAd();
+    });
+
     final ad = _bannerAd;
-    final size = _adSize;
-    
-    if (_isLoaded && ad != null && size != null) {
-      return Container(
-        width: size.width.toDouble(),
-        height: size.height.toDouble(),
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        alignment: Alignment.center,
+    if (!_isLoaded || ad == null) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      height: 50,
+      color: Colors.white,
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: 320,
+        height: 50,
         child: AdWidget(ad: ad),
-      );
-    }
-    return const SizedBox(height: 50);
+      ),
+    );
   }
 }

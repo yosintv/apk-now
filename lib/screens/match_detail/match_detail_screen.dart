@@ -11,6 +11,7 @@ import '../../services/ad_service.dart';
 import '../../providers/streaming_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../widgets/banner_ad_widget.dart';
+import '../../widgets/ad_banner_widget.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _bgPage       = Color(0xFFF4F6F9);
@@ -65,7 +66,8 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
       CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
     );
 
-    Future.delayed(const Duration(milliseconds: 1000), () {
+    final rewardedDelay = ref.read(configProvider).rewardedAdTime;
+    Future.delayed(Duration(seconds: rewardedDelay), () {
       if (mounted) {
         ref.read(adServiceProvider).showRewardedAd(
           onUserEarnedReward: (reward) {},
@@ -159,48 +161,84 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
                           homeOut.isNotEmpty    || awayOut.isNotEmpty    ||
                           homeManager != null   || awayManager != null;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark.copyWith(
-        statusBarColor: Colors.transparent,
-      ),
-      child: Scaffold(
-        backgroundColor: _bgPage,
-        body: SafeArea(
-          bottom: false,
-          child: CustomScrollView(
-            slivers: [
-              // 1 · Hero header
-              SliverToBoxAdapter(
-                child: _buildHero(match, status),
-              ),
-
-              // 2 · Match Preview
-              _pad(_buildPreviewCard(match)),
-
-              // 3 · Match Information
-              _pad(_buildInfoCard(match, event)),
-
-              // 4 · Match Links (hidden in review mode)
-              if (!config.reviewMode)
-                _pad(_buildLinksSection(match, status, isPreMatch, countdown)),
-
-              // 5 · Playing XI
-              if (hasLineupData)
-                _pad(_buildPlayingXI(
-                  match, homeLineup, awayLineup,
-                  homeFmt, awayFmt, homeOut, awayOut,
-                  homeManager, awayManager,
-                )),
-
-              // 6 · Head-to-Head
-              if (h2h.isNotEmpty) _pad(_buildH2H(match, h2h)),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 40)),
-            ],
+    return Scaffold(
+      backgroundColor: _bgPage,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 1.5,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        surfaceTintColor: Colors.transparent,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: _accent, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Image.asset(
+          'assets/headerimage.png',
+          height: 32,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const Text(
+            'YoSinTV',
+            style: TextStyle(
+              color: _accent,
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
+            ),
           ),
         ),
-        bottomNavigationBar: const SafeArea(child: BannerAdWidget()),
+        systemOverlayStyle: SystemUiOverlayStyle.dark.copyWith(
+          statusBarColor: Colors.transparent,
+        ),
+        shape: const Border(
+          bottom: BorderSide(color: Color(0x0F000000), width: 1),
+        ),
       ),
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: CustomScrollView(
+          slivers: [
+            // 1 · Hero header
+            SliverToBoxAdapter(
+              child: _buildHero(match, status),
+            ),
+
+            // 2 · Match Preview
+            _pad(_buildPreviewCard(match)),
+
+            // 3 · Match Information
+            _pad(_buildInfoCard(match, event)),
+
+            // 4 · Banner ad (always shown when ads_enabled; not gated by review_mode or streaming_enabled)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 22, 16, 0),
+                child: AdBannerWidget(),
+              ),
+            ),
+
+            // 5 · Match Links (hidden when review_mode true, streaming_enabled false, or match finished)
+            if (config.shouldShowLinks && status != MatchStatus.fullTime)
+              _pad(_buildLinksSection(match, status, isPreMatch, countdown)),
+
+            // 6 · Playing XI
+            if (hasLineupData)
+              _pad(_buildPlayingXI(
+                match, homeLineup, awayLineup,
+                homeFmt, awayFmt, homeOut, awayOut,
+                homeManager, awayManager,
+              )),
+
+            // 7 · Head-to-Head
+            if (h2h.isNotEmpty) _pad(_buildH2H(match, h2h)),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
+          ],
+        ),
+      ),
+      bottomNavigationBar: const SafeArea(child: BannerAdWidget()),
     );
   }
 
@@ -235,29 +273,15 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
       ),
       child: Column(
           children: [
-            // Back button row
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 4, top: 4),
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-            ),
+            const SizedBox(height: 16),
 
             // Status pill
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.10),
+                color: Colors.white.withValues(alpha:0.10),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white.withOpacity(0.15)),
+                border: Border.all(color: Colors.white.withValues(alpha:0.15)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -268,11 +292,11 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
                       builder: (_, __) => Container(
                         width: 8, height: 8,
                         decoration: BoxDecoration(
-                          color: _statusLive.withOpacity(_pulseAnim.value),
+                          color: _statusLive.withValues(alpha:_pulseAnim.value),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: _statusLive.withOpacity(0.6),
+                              color: _statusLive.withValues(alpha:0.6),
                               blurRadius: 8,
                             ),
                           ],
@@ -346,9 +370,9 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
               margin: const EdgeInsets.fromLTRB(12, 0, 12, 18),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha:0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withOpacity(0.10)),
+                border: Border.all(color: Colors.white.withValues(alpha:0.10)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -413,7 +437,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.white.withOpacity(0.22),
+                color: Colors.white.withValues(alpha:0.22),
                 blurRadius: 20,
                 spreadRadius: 2,
               ),
@@ -553,7 +577,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
                 Container(
                   width: 26, height: 26,
                   decoration: BoxDecoration(
-                    color: _accent.withOpacity(0.15),
+                    color: _accent.withValues(alpha:0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.description_outlined, size: 14, color: _accent),
@@ -766,7 +790,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
                     color: const Color(0xFFFEF9EE),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: _statusAmber.withOpacity(0.35),
+                      color: _statusAmber.withValues(alpha:0.35),
                     ),
                   ),
                   child: Row(
@@ -903,7 +927,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
-                color: qualityColor.withOpacity(0.12),
+                color: qualityColor.withValues(alpha:0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -1184,7 +1208,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
   Widget _fmtPill(String fmt, Color color) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.10),
+      color: color.withValues(alpha:0.10),
       borderRadius: BorderRadius.circular(20),
     ),
     child: Text(
@@ -1438,7 +1462,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
           Container(
             width: 26, height: 26,
             decoration: BoxDecoration(
-              color: _accent.withOpacity(0.15),
+              color: _accent.withValues(alpha:0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, size: 14, color: _accent),
@@ -1508,7 +1532,7 @@ class _PitchPainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(0, 0, W, H), bgPaint);
 
     // Mowing stripes
-    final stripePaint = Paint()..color = Colors.white.withOpacity(0.03);
+    final stripePaint = Paint()..color = Colors.white.withValues(alpha:0.03);
     final stripeH = H / 14;
     for (int i = 0; i < 14; i += 2) {
       canvas.drawRect(Rect.fromLTWH(0, i * stripeH, W, stripeH), stripePaint);
@@ -1516,7 +1540,7 @@ class _PitchPainter extends CustomPainter {
 
     // Line paint
     final lp = Paint()
-      ..color = Colors.white.withOpacity(0.55)
+      ..color = Colors.white.withValues(alpha:0.55)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
@@ -1533,7 +1557,7 @@ class _PitchPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(W / 2, H / 2),
       3,
-      Paint()..color = Colors.white.withOpacity(0.55),
+      Paint()..color = Colors.white.withValues(alpha:0.55),
     );
 
     // Penalty areas
@@ -1551,7 +1575,7 @@ class _PitchPainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(gbX, H - m - gbH, gbW, gbH), lp);  // bottom
 
     // Penalty spots
-    final dotPaint = Paint()..color = Colors.white.withOpacity(0.55);
+    final dotPaint = Paint()..color = Colors.white.withValues(alpha:0.55);
     canvas.drawCircle(Offset(W / 2, m + boxH * 0.62), 2.5, dotPaint);
     canvas.drawCircle(Offset(W / 2, H - m - boxH * 0.62), 2.5, dotPaint);
   }
