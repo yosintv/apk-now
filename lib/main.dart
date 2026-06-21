@@ -57,7 +57,7 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
 
   Future<void> _initApp() async {
     unawaited(_initAdMob());
-    
+
     bool hasConnection = false;
     while (!hasConnection) {
       final results = await Connectivity().checkConnectivity();
@@ -69,20 +69,23 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
       }
     }
 
-    // Ensure config is fully fetched before proceeding
-    await ref.read(configProvider.notifier).fetchConfig();
-    
-    final config = ref.read(configProvider);
-    await _initAnalytics(config);
-    
-    await Future.delayed(const Duration(milliseconds: 1500));
-    
-    if (mounted) {
-      setState(() => _isLoading = false);
+    // Load asset config + enforce minimum splash time in parallel.
+    // Both run concurrently — total wait = max(asset load ~50ms, 1200ms) = 1200ms.
+    await Future.wait([
+      ref.read(configProvider.notifier).loadAsset(),
+      Future.delayed(const Duration(milliseconds: 1200)),
+    ]);
+
+    if (mounted) setState(() => _isLoading = false);
+
+    // Fetch remote config + run analytics + check popups in background
+    unawaited(ref.read(configProvider.notifier).fetchConfig().then((_) {
+      if (!mounted) return;
+      unawaited(_initAnalytics(ref.read(configProvider)));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _checkPopups(ref.read(configProvider));
       });
-    }
+    }));
   }
 
   Future<void> _initAnalytics(AppConfig config) async {
@@ -209,48 +212,38 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
   }
 
   Future<void> _checkPopups(AppConfig config) async {
-    // 1. Guard Clauses: Ensure config has update info and popups haven't been handled
-    if (config.appUpdate == null) {
-      debugPrint("Update Check: No appUpdate found in config. Ensure server response is correct.");
-      return;
-    }
-    
     if (_popupsHandled) return;
-
-    // Ensure UI is ready (safety delay)
-    await Future.delayed(const Duration(seconds: 1));
-    
-    final context = rootNavigatorKey.currentContext;
-    if (context == null) {
-      if (mounted) {
-        Future.delayed(const Duration(seconds: 1), () => _checkPopups(config));
-      }
-      return;
-    }
-
-    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      final updateInfo = config.appUpdate!;
-      
-      // Compare latest_version (from config) against package_info version
-      String current = packageInfo.version.split('+').first;
-      if (current.isEmpty) current = "1.1.0";
-
-      String latest = updateInfo.latestVersion.split('+').first;
-      if (latest.isEmpty) latest = "2.0.0";
-
-      debugPrint("Update Check: Current version $current, Latest version $latest");
-
-      if (_isVersionGreater(latest, current)) {
-        _popupsHandled = true;
-        if (mounted) _showUpdateDialog(updateInfo);
-        return;
-      }
-    } catch (e) {
-      debugPrint("Version parsing error: $e");
-    }
-
     _popupsHandled = true;
+
+    // Safety delay — ensures navigation stack is ready
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) return;
+
+    // 1. App update check (highest priority)
+    if (config.appUpdate != null) {
+      try {
+        final packageInfo = await PackageInfo.fromPlatform();
+        final updateInfo = config.appUpdate!;
+        String current = packageInfo.version.split('+').first;
+        if (current.isEmpty) current = "1.0.0";
+        String latest = updateInfo.latestVersion.split('+').first;
+        if (latest.isEmpty) latest = "1.0.0";
+        debugPrint("Update Check: Current $current, Latest $latest");
+        if (_isVersionGreater(latest, current)) {
+          if (mounted) _showUpdateDialog(updateInfo);
+          return;
+        }
+      } catch (e) {
+        debugPrint("Version parsing error: $e");
+      }
+    }
+
+    // 2. Welcome / announcement popup
+    if (config.popupEnabled && config.popupTitle.isNotEmpty) {
+      if (mounted) _showWelcomePopup(config);
+    }
   }
 
   bool _isVersionGreater(String latest, String current) {
@@ -300,6 +293,258 @@ class _YoSinTVAppState extends ConsumerState<YoSinTVApp> with WidgetsBindingObse
                   child: const Text('UPDATE NOW', style: TextStyle(color: Colors.white)),
                 ),
               ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showWelcomePopup(AppConfig config) {
+    final ctx = rootNavigatorKey.currentContext;
+    if (ctx == null) return;
+
+    showGeneralDialog(
+      context: ctx,
+      barrierDismissible: true,
+      barrierLabel: 'Welcome',
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      transitionDuration: const Duration(milliseconds: 380),
+      transitionBuilder: (_, anim, __, child) => FadeTransition(
+        opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.82, end: 1.0).animate(
+            CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
+          ),
+          child: child,
+        ),
+      ),
+      pageBuilder: (dialogCtx, _, __) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Center(
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.22),
+                      blurRadius: 48,
+                      offset: const Offset(0, 20),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ── Gradient header ──────────────────────────────────
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(24, 30, 24, 26),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF002147), Color(0xFF1652A8)],
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // Sport icons + logo cluster
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 46,
+                                  height: 46,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.10),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Text('⚽', style: TextStyle(fontSize: 22)),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Container(
+                                  width: 68,
+                                  height: 68,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.primaryLight.withValues(alpha: 0.55),
+                                        blurRadius: 24,
+                                        spreadRadius: 3,
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(10),
+                                  child: Image.asset(
+                                    'assets/logo.png',
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.live_tv_rounded,
+                                      color: AppColors.primary,
+                                      size: 34,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Container(
+                                  width: 46,
+                                  height: 46,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.10),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Text('🏏', style: TextStyle(fontSize: 22)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            Text(
+                              config.popupTitle,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.4,
+                                height: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ── Body ─────────────────────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 20, 22, 24),
+                        child: Column(
+                          children: [
+                            Text(
+                              config.popupText,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w500,
+                                height: 1.55,
+                              ),
+                            ),
+                            const SizedBox(height: 22),
+
+                            // WhatsApp button
+                            if (config.whatsappLink.isNotEmpty)
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogCtx);
+                                    launchUrl(
+                                      Uri.parse(config.whatsappLink),
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.whatsapp,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.chat_rounded, color: Colors.white, size: 19),
+                                      SizedBox(width: 9),
+                                      Text(
+                                        'Join WhatsApp Group',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                            if (config.whatsappLink.isNotEmpty &&
+                                config.telegramLink.isNotEmpty)
+                              const SizedBox(height: 10),
+
+                            // Telegram button
+                            if (config.telegramLink.isNotEmpty)
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogCtx);
+                                    launchUrl(
+                                      Uri.parse(config.telegramLink),
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.telegram,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.send_rounded, color: Colors.white, size: 19),
+                                      SizedBox(width: 9),
+                                      Text(
+                                        'Join Telegram Channel',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                            const SizedBox(height: 18),
+
+                            // Dismiss
+                            GestureDetector(
+                              onTap: () => Navigator.pop(dialogCtx),
+                              child: const Text(
+                                'Maybe later',
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         );

@@ -18,7 +18,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with AutomaticKeepAliveClientMixin {
-  String _selectedFilter = 'All';
   String _searchQuery = '';
 
   @override
@@ -34,31 +33,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  String _leagueLabel(String name, String sport) {
-    final n = name.toLowerCase();
-    if (n.contains('indian premier league') || n == 'ipl') return 'IPL';
-    if (n.contains('world cup') && sport == 'cricket') return 'World Cup';
-    if (n.contains('premier league') && sport == 'football') return 'PL';
-    if (n.contains('champions league') || n.contains('ucl')) return 'UCL';
-    if (n.contains('la liga') || n.contains('laliga')) return 'La Liga';
-    return sport == 'cricket' ? 'Cricket' : 'Football';
-  }
-
   List<Match> _applyFilter(List<Match> all) {
-    return all.where((m) {
-      final q = _searchQuery.toLowerCase();
-      if (q.isNotEmpty) {
-        if (!m.teamA.toLowerCase().contains(q) &&
-            !m.teamB.toLowerCase().contains(q) &&
-            !m.leagueName.toLowerCase().contains(q)) {
-          return false;
-        }
-      }
-      if (_selectedFilter == 'All') return true;
-      if (_selectedFilter == 'Cricket') return m.sport == 'cricket';
-      if (_selectedFilter == 'Football') return m.sport == 'football';
-      return _leagueLabel(m.leagueName, m.sport) == _selectedFilter;
-    }).toList();
+    final q = _searchQuery.toLowerCase();
+    if (q.isEmpty) return all;
+    return all.where((m) =>
+      m.teamA.toLowerCase().contains(q) ||
+      m.teamB.toLowerCase().contains(q) ||
+      m.leagueName.toLowerCase().contains(q),
+    ).toList();
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -98,16 +80,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final upcomingCount =
         filtered.where((m) => m.status == MatchStatus.upcoming).length;
 
-    // Build filter label list
-    final filters = ['All', 'Cricket', 'Football'];
-    final seenLabels = <String>{};
-    for (final m in allMatches) {
-      final lbl = _leagueLabel(m.leagueName, m.sport);
-      if (lbl != 'Cricket' && lbl != 'Football' && seenLabels.add(lbl)) {
-        filters.add(lbl);
-      }
-    }
-
     final articles = articlesAsync.value ?? [];
 
     return Scaffold(
@@ -137,14 +109,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: _buildSearch(),
-                ),
-              ),
-
-              // ── Filter chips ───────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 14),
-                  child: _buildFilters(filters),
                 ),
               ),
 
@@ -383,59 +347,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
-      ),
-    );
-  }
-
-  Widget _buildFilters(List<String> labels) {
-    return SizedBox(
-      height: 36,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: labels.length,
-        itemBuilder: (context, index) {
-          final label = labels[index];
-          final selected = _selectedFilter == label;
-          return GestureDetector(
-            onTap: () =>
-                setState(() => _selectedFilter = selected ? 'All' : label),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: selected ? AppColors.primary : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: selected ? AppColors.primary : AppColors.border,
-                  width: 1.2,
-                ),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.22),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        )
-                      ]
-                    : [],
-              ),
-              child: Center(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color:
-                        selected ? Colors.white : AppColors.textSecondary,
-                    fontWeight:
-                        selected ? FontWeight.w800 : FontWeight.w600,
-                    fontSize: 12.5,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }

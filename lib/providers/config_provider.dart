@@ -17,9 +17,22 @@ class ConfigNotifier extends StateNotifier<AppConfig> {
   /// Returns true if the current state was successfully fetched from a remote server.
   bool get isRemoteFetched => _isRemoteFetched;
 
+  /// Loads only the bundled asset config — instant, no network.
+  /// Call this at startup to show the app immediately, then call fetchConfig() in background.
+  Future<void> loadAsset() async {
+    try {
+      final String response = await rootBundle.loadString('assets/app_config.json');
+      final assetData = json.decode(response) as Map<String, dynamic>;
+      state = AppConfig.fromJson(assetData);
+      debugPrint("Config: Initialized from local assets");
+    } catch (e) {
+      debugPrint("Config Error: Failed to load assets: $e");
+    }
+  }
+
   Future<void> fetchConfig() async {
     Map<String, dynamic> assetData = {};
-    
+
     // 1. Load the base configuration from Assets
     try {
       final String response = await rootBundle.loadString('assets/app_config.json');
@@ -62,7 +75,7 @@ class ConfigNotifier extends StateNotifier<AppConfig> {
         debugPrint("Config: Alt remote fetch failed: $e");
       }
     }
-    
+
     _isRemoteFetched = false;
   }
 }
